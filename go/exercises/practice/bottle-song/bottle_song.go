@@ -6,6 +6,7 @@ import (
 )
 
 var numberToWord = map[int]string{
+	0:  "no",
 	1:  "one",
 	2:  "two",
 	3:  "three",
@@ -19,9 +20,6 @@ var numberToWord = map[int]string{
 }
 
 func capitalize(s string) string {
-	if s == "" {
-		return s
-	}
 	return strings.ToUpper(s[:1]) + s[1:]
 }
 
@@ -53,7 +51,7 @@ func verse(n int) []string {
 
 func Recite(startBottles, takeDown int) []string {
 	verses := []string{}
-	for i := startBottles; i > startBottles-takeDown; i -= 1 {
+	for i := startBottles; i > startBottles-takeDown; i-- {
 		verses = append(verses, verse(i)...)
 		if i > startBottles-takeDown+1 {
 			verses = append(verses, "")

@@ -1,15 +1,12 @@
-# Executor Test Results
+# Test Results: bottle-song
 
-**Date**: 2026-02-15
-**Package**: `bottlesong` (go/exercises/practice/bottle-song/)
+## `go vet ./...`
 
-## 1. `go build ./...`
+```
+(no output - all checks passed)
+```
 
-**Result**: PASS (no errors)
-
-## 2. `go test -v`
-
-**Result**: PASS (all 7 tests pass)
+## `go test -v`
 
 ```
 === RUN   TestRecite
@@ -29,24 +26,10 @@
     --- PASS: TestRecite/last_three_verses (0.00s)
     --- PASS: TestRecite/all_verses (0.00s)
 PASS
-ok  	bottlesong	0.004s
+ok  	bottlesong	0.002s
 ```
-
-## 3. `go vet ./...`
-
-**Result**: PASS (no issues)
-
-## 4. `staticcheck ./...`
-
-**Result**: PASS (no issues)
 
 ## Summary
 
-| Check         | Result |
-|---------------|--------|
-| go build      | PASS   |
-| go test       | PASS (7/7) |
-| go vet        | PASS   |
-| staticcheck   | PASS   |
-
-All checks pass with zero errors or warnings.
+- **go vet**: PASSED (no issues)
+- **go test**: ALL 7 tests PASSED, 0 failed

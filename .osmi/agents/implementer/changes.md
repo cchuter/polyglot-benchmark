@@ -13,3 +13,18 @@
 - Discount table stored as `var discounts = [6]int{0, 0, 5, 10, 20, 25}`.
 
 **Build verification:** `go build ./...` passed with no errors.
+
+## 2026-02-15: Implement Recite function for bottle-song exercise
+
+**File changed:** `go/exercises/practice/bottle-song/bottle_song.go`
+
+**Summary:** Implemented the `Recite` function to generate "Ten Green Bottles" song lyrics.
+
+**Details:**
+- Added imports: `fmt`, `strings`
+- `numberToWord` map (`map[int]string`) mapping integers 0-10 to English words
+- `capitalize(s string) string` helper to uppercase the first character using `strings.ToUpper`
+- `verse(n int) []string` function with switch cases for n==1 (singular bottle, "no" remaining), n==2 (plural bottles, singular remaining), and default (plural both)
+- `Recite(startBottles, takeDown int) []string` loops from `startBottles` downward for `takeDown` iterations, assembling verses separated by empty strings
+
+**Test verification:** All 7 tests pass (`go test -v`).
