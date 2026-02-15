@@ -9,11 +9,12 @@ import (
 var decDigits = []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
 
 type problem struct {
-	vDigits      [][]rune
-	maxDigits    int
-	letterValues [26]int
-	lettersUsed  []rune
-	nLetters     int
+	vDigits        [][]rune
+	maxDigits      int
+	letterValues   [26]int
+	lettersUsed    []rune
+	nLetters       int
+	leadingLetters []rune
 }
 
 func Solve(puzzle string) (map[string]int, error) {
@@ -43,6 +44,17 @@ func parsePuzzle(puzzle string) (p *problem) {
 				}
 				v := r - 'A'
 				p.letterValues[v] = -1
+			}
+		}
+	}
+	// Record leading letters of multi-digit words.
+	seen := make(map[rune]bool)
+	for _, field := range valueStrings {
+		if len(field) > 1 {
+			l := rune(field[0]) - 'A'
+			if !seen[l] {
+				seen[l] = true
+				p.leadingLetters = append(p.leadingLetters, l)
 			}
 		}
 	}
@@ -76,9 +88,15 @@ func parsePuzzle(puzzle string) (p *problem) {
 func (p *problem) solvePuzzle() (map[string]int, error) {
 	for _, digValues := range permutations(decDigits, p.nLetters) {
 		if p.isPuzzleSolution(digValues) {
-			// Check leading digit of answer for 0 (invalid solution).
-			r := p.vDigits[len(p.vDigits)-1][p.maxDigits-1]
-			if p.letterValues[r-1] == 0 {
+			// Check all leading digits for 0 (invalid solution).
+			hasLeadingZero := false
+			for _, l := range p.leadingLetters {
+				if p.letterValues[l] == 0 {
+					hasLeadingZero = true
+					break
+				}
+			}
+			if hasLeadingZero {
 				continue
 			}
 			return p.puzzleMap(), nil
@@ -121,7 +139,7 @@ func (p *problem) isPuzzleSolution(values []int) bool {
 			return false
 		}
 	}
-	return true
+	return carry == 0
 }
 
 // puzzleMap creates a "by letter" map from the letterValues used.
