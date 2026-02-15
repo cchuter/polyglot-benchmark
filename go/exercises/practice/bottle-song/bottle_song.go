@@ -1,6 +1,9 @@
 package bottlesong
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 var numberToWord = map[int]string{
 	1:  "one",
@@ -33,8 +36,8 @@ func verse(n int) []string {
 		}
 	default:
 		return []string{
-			fmt.Sprintf("%s green bottles hanging on the wall,", Title(numberToWord[n])),
-			fmt.Sprintf("%s green bottles hanging on the wall,", Title(numberToWord[n])),
+			fmt.Sprintf("%s green bottles hanging on the wall,", strings.Title(numberToWord[n])),
+			fmt.Sprintf("%s green bottles hanging on the wall,", strings.Title(numberToWord[n])),
 			"And if one green bottle should accidentally fall,",
 			fmt.Sprintf("There'll be %s green bottles hanging on the wall.", numberToWord[n-1]),
 		}
