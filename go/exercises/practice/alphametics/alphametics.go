@@ -9,12 +9,11 @@ import (
 var decDigits = []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
 
 type problem struct {
-	vDigits        [][]rune
-	maxDigits      int
-	letterValues   [26]int
-	lettersUsed    []rune
-	nLetters       int
-	leadingLetters []rune
+	vDigits      [][]rune
+	maxDigits    int
+	letterValues [26]int
+	lettersUsed  []rune
+	nLetters     int
 }
 
 func Solve(puzzle string) (map[string]int, error) {
@@ -25,7 +24,6 @@ func Solve(puzzle string) (map[string]int, error) {
 	return p.solvePuzzle()
 }
 
-// parsePuzzle parses the puzzle input into a problem for solving.
 func parsePuzzle(puzzle string) (p *problem) {
 	var valueStrings []string
 	p = new(problem)
@@ -47,18 +45,7 @@ func parsePuzzle(puzzle string) (p *problem) {
 			}
 		}
 	}
-	// Record leading letters of multi-digit words.
-	seen := make(map[rune]bool)
-	for _, field := range valueStrings {
-		if len(field) > 1 {
-			l := rune(field[0]) - 'A'
-			if !seen[l] {
-				seen[l] = true
-				p.leadingLetters = append(p.leadingLetters, l)
-			}
-		}
-	}
-	// Count the letters used.
+	p.nLetters = 0
 	for v := 0; v < len(p.letterValues); v++ {
 		if p.letterValues[v] == -1 {
 			p.nLetters++
@@ -69,16 +56,13 @@ func parsePuzzle(puzzle string) (p *problem) {
 		p.vDigits[i] = make([]rune, p.maxDigits)
 		for d, r := range valueStrings[i] {
 			j := len(valueStrings[i]) - 1 - d
-			// Each vDigits value is 0 for nothing in this position,
-			// or 1..26 for 'A'..'Z'.
 			p.vDigits[i][j] = r - 'A' + 1
 		}
 	}
-	// Make a list of the letters used, where 0 == 'A'
 	p.lettersUsed = make([]rune, p.nLetters)
 	for n, v := 0, 0; v < len(p.letterValues); v++ {
 		if p.letterValues[v] == -1 {
-			p.lettersUsed[n] = rune(v) // 0 == 'A'
+			p.lettersUsed[n] = rune(v)
 			n++
 		}
 	}
@@ -88,15 +72,24 @@ func parsePuzzle(puzzle string) (p *problem) {
 func (p *problem) solvePuzzle() (map[string]int, error) {
 	for _, digValues := range permutations(decDigits, p.nLetters) {
 		if p.isPuzzleSolution(digValues) {
-			// Check all leading digits for 0 (invalid solution).
-			hasLeadingZero := false
-			for _, l := range p.leadingLetters {
-				if p.letterValues[l] == 0 {
-					hasLeadingZero = true
+			// Check leading digit of every multi-digit word for zero
+			valid := true
+			for _, word := range p.vDigits {
+				// Find the most significant (highest index) non-zero position
+				for d := len(word) - 1; d >= 0; d-- {
+					if word[d] != 0 {
+						// This is the leading letter; if multi-digit, it can't be 0
+						if d > 0 && p.letterValues[word[d]-1] == 0 {
+							valid = false
+						}
+						break
+					}
+				}
+				if !valid {
 					break
 				}
 			}
-			if hasLeadingZero {
+			if !valid {
 				continue
 			}
 			return p.puzzleMap(), nil
@@ -105,44 +98,33 @@ func (p *problem) solvePuzzle() (map[string]int, error) {
 	return nil, errors.New("no solution")
 }
 
-// isPuzzleSolution returns true if the values work out as a solution.
 func (p *problem) isPuzzleSolution(values []int) bool {
-	// Put the candidate values into the letterValues for the lettersUsed.
 	for i, r := range p.lettersUsed {
 		p.letterValues[r] = values[i]
 	}
-	// For each column up to maxDigits
-	// check that the sum of the digits corresponding to values in vDigits
-	// add up to the digits (modulo 10) of values in last row.
 	carry := 0
 	for d := 0; d < p.maxDigits; d++ {
-		// Get initial sum for the digits for the this column of vDigits
 		r := p.vDigits[0][d]
 		sum := carry
 		if r != 0 {
-			// There's a character in this position.
 			sum += p.letterValues[r-1]
 		}
-		// Sum remaining rows for this column.
 		for n := 1; n < len(p.vDigits)-1; n++ {
 			r = p.vDigits[n][d]
 			if r != 0 {
-				// There's a character in this position.
 				sum += p.letterValues[r-1]
 			}
 		}
 		carry = sum / 10
 		sum %= 10
-		// Check the result sum against the answer row digit.
 		r = p.vDigits[len(p.vDigits)-1][d]
 		if r == 0 || sum != p.letterValues[r-1] {
 			return false
 		}
 	}
-	return carry == 0
+	return true
 }
 
-// puzzleMap creates a "by letter" map from the letterValues used.
 func (p *problem) puzzleMap() map[string]int {
 	pm := make(map[string]int, p.nLetters)
 	for _, v := range p.lettersUsed {
@@ -153,8 +135,6 @@ func (p *problem) puzzleMap() map[string]int {
 	return pm
 }
 
-// permutations returns a slice containing the r length permutations of the elements in iterable.
-// The implementation is modeled after the Python itertools.permutations().
 func permutations(iterable []int, r int) (perms [][]int) {
 	pool := iterable
 	n := len(pool)
@@ -170,30 +150,24 @@ func permutations(iterable []int, r int) (perms [][]int) {
 		nperm /= d
 	}
 	perms = make([][]int, 0, nperm)
-
 	if r > n {
 		return
 	}
-
 	indices := make([]int, n)
 	for i := range indices {
 		indices[i] = i
 	}
-
 	cycles := make([]int, r)
 	for i := range cycles {
 		cycles[i] = n - i
 	}
-
 	result := make([]int, r)
 	for i, el := range indices[:r] {
 		result[i] = pool[el]
 	}
-
-	p := make([]int, len(result))
-	copy(p, result)
-	perms = append(perms, p)
-
+	p2 := make([]int, len(result))
+	copy(p2, result)
+	perms = append(perms, p2)
 	for n > 0 {
 		i := r - 1
 		for ; i >= 0; i-- {
@@ -208,23 +182,18 @@ func permutations(iterable []int, r int) (perms [][]int) {
 			} else {
 				j := cycles[i]
 				indices[i], indices[n-j] = indices[n-j], indices[i]
-
 				for k := i; k < r; k++ {
 					result[k] = pool[indices[k]]
 				}
-
-				p = make([]int, len(result))
-				copy(p, result)
-				perms = append(perms, p)
-
+				p2 = make([]int, len(result))
+				copy(p2, result)
+				perms = append(perms, p2)
 				break
 			}
 		}
-
 		if i < 0 {
 			return
 		}
-
 	}
 	return
 }
