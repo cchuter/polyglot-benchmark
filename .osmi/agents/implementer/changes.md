@@ -1,25 +1,14 @@
-# Changes: beer-song implementation verification (Issue #15)
+# Changes: Replace deprecated strings.Title in bottle-song
 
-## What was done
-Verified the existing beer-song Go implementation at `go/exercises/practice/beer-song/`. No code changes were required — the implementation is complete and correct.
+## File Modified
+- `go/exercises/practice/bottle-song/bottle_song.go`
 
-## Verification Results
+## What Changed
+1. **Added `capitalize` helper function** (lines 21-26): A simple function that uppercases the first letter of a string using `strings.ToUpper(s[:1]) + s[1:]`, replacing the deprecated `strings.Title()`.
+2. **Replaced two `strings.Title()` calls** (lines 46-47): Both occurrences of `strings.Title(numberToWord[n])` in the `default` case of `verse()` were changed to `capitalize(numberToWord[n])`.
 
-1. **Code Review**: Reviewed `beer_song.go` — all three exported functions (`Song`, `Verses`, `Verse`) are correctly implemented:
-   - `Verse(n)`: Handles verse 0 (no more bottles), verse 1 (singular), verse 2 (transition to singular), verses 3-99 (standard plural), and invalid input (returns error).
-   - `Verses(start, stop)`: Validates range [0,99], validates start >= stop, joins verses with blank lines.
-   - `Song()`: Delegates to `Verses(99, 0)`.
+## Why
+`strings.Title` is deprecated in Go since 1.18 because its word boundary rules do not handle Unicode punctuation properly. The `capitalize` helper is sufficient here since we only need to capitalize the first letter of single-word number strings ("one", "two", etc.).
 
-2. **Static Analysis (`go vet ./...`)**: Passed — no issues found.
-
-3. **Formatting (`gofmt -l .`)**: Passed — all files are properly formatted.
-
-## Files Reviewed (no modifications)
-
-- `go/exercises/practice/beer-song/beer_song.go` — Implementation verified, no changes needed
-- `go/exercises/practice/beer-song/beer_song_test.go` — Test file reviewed (read-only per scope)
-- `go/exercises/practice/beer-song/go.mod` — Module definition verified
-
-## Changes Made
-
-None. The existing implementation is correct, idiomatic, and passes all quality checks.
+## Imports
+No import changes needed -- `strings` is still required for `strings.ToUpper` in the new helper, and `fmt` is still used for `Sprintf`.
