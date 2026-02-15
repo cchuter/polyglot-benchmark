@@ -28,3 +28,18 @@
 - `Recite(startBottles, takeDown int) []string` loops from `startBottles` downward for `takeDown` iterations, assembling verses separated by empty strings
 
 **Test verification:** All 7 tests pass (`go test -v`).
+
+## 2026-02-15: Re-implement Recite function for bottle-song exercise
+
+**File changed:** `go/exercises/practice/bottle-song/bottle_song.go`
+
+**Summary:** Re-implemented the `Recite` function with a cleaner approach using helper functions.
+
+**Details:**
+- `numberToWord` map (`map[int]string`) mapping integers 0-10 to English words
+- `capitalize(s string) string` — uppercases the first character
+- `bottleWord(n int) string` — returns "bottle" (singular) or "bottles" (plural)
+- `verse(n int) []string` — generates the 4 lines of a single verse using fmt.Sprintf
+- `Recite(startBottles, takeDown int) []string` — loops from startBottles downward for takeDown iterations, assembling verses separated by empty strings
+
+**Commit:** `feat: implement Recite function for bottle-song exercise`

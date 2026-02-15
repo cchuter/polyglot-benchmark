@@ -1,4 +1,4 @@
-# Test Results: bottle-song
+# Build & Test Results: bottle-song
 
 ## `go vet ./...`
 
@@ -6,7 +6,7 @@
 (no output - all checks passed)
 ```
 
-## `go test -v`
+## `go test -v ./...`
 
 ```
 === RUN   TestRecite
@@ -26,7 +26,7 @@
     --- PASS: TestRecite/last_three_verses (0.00s)
     --- PASS: TestRecite/all_verses (0.00s)
 PASS
-ok  	bottlesong	0.002s
+ok  	bottlesong	0.005s
 ```
 
 ## Summary
