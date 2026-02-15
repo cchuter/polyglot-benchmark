@@ -1,13 +1,25 @@
-# Changes: book-store Cost function
+# Changes: beer-song implementation verification (Issue #15)
 
 ## What was done
-Replaced the `panic` stub in `go/exercises/practice/book-store/book_store.go` with a full implementation of the `Cost` function.
+Verified the existing beer-song Go implementation at `go/exercises/practice/beer-song/`. No code changes were required — the implementation is complete and correct.
 
-## Implementation details
-- **Greedy grouping**: Count frequency of each book, then greedily form the largest possible groups of distinct books.
-- **5+3 → 4+4 optimization**: Two groups of 4 (2×2560 = 5120) are cheaper than a group of 5 + group of 3 (3000+2160 = 5160). The algorithm swaps paired 5-groups and 3-groups into 4-groups.
-- **Lookup table**: A precomputed `groupCosts` array maps group size → cost in cents.
+## Verification Results
 
-## Verification
-- `go vet ./...` passes with no issues.
-- All 18 test cases pass.
+1. **Code Review**: Reviewed `beer_song.go` — all three exported functions (`Song`, `Verses`, `Verse`) are correctly implemented:
+   - `Verse(n)`: Handles verse 0 (no more bottles), verse 1 (singular), verse 2 (transition to singular), verses 3-99 (standard plural), and invalid input (returns error).
+   - `Verses(start, stop)`: Validates range [0,99], validates start >= stop, joins verses with blank lines.
+   - `Song()`: Delegates to `Verses(99, 0)`.
+
+2. **Static Analysis (`go vet ./...`)**: Passed — no issues found.
+
+3. **Formatting (`gofmt -l .`)**: Passed — all files are properly formatted.
+
+## Files Reviewed (no modifications)
+
+- `go/exercises/practice/beer-song/beer_song.go` — Implementation verified, no changes needed
+- `go/exercises/practice/beer-song/beer_song_test.go` — Test file reviewed (read-only per scope)
+- `go/exercises/practice/beer-song/go.mod` — Module definition verified
+
+## Changes Made
+
+None. The existing implementation is correct, idiomatic, and passes all quality checks.
