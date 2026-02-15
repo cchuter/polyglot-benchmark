@@ -1,36 +1,41 @@
-# Goal: polyglot-go-beer-song (Issue #15)
+# Goal: polyglot-go-alphametics (Issue #21)
 
 ## Problem Statement
 
-Implement the "99 Bottles of Beer on the Wall" exercise in Go as part of the polyglot benchmark suite. The exercise requires generating the lyrics to the classic song with correct handling of singular/plural forms and special verses.
+Implement (and verify) the alphametics puzzle solver exercise in Go as part of the polyglot benchmark suite. Alphametics puzzles replace letters in words with digits such that an arithmetic equation holds, with constraints that each letter maps to a unique digit and leading digits of multi-digit numbers cannot be zero.
 
-The implementation already exists at `go/exercises/practice/beer-song/` with all tests passing. This issue validates the implementation meets acceptance criteria and closes issue #15 on a proper feature branch.
+The implementation exists at `go/exercises/practice/alphametics/alphametics.go` and currently passes all tests. This issue validates the implementation meets acceptance criteria and closes issue #21 on a proper feature branch.
 
 ## Acceptance Criteria
 
-1. **`Verse(n int) (string, error)`** — Returns a single verse for bottle count `n` (0-99)
-   - Verse 0: "No more bottles..." / "Go to the store and buy some more, 99 bottles..."
-   - Verse 1: "1 bottle..." (singular) / "Take it down..." / "no more bottles..."
-   - Verse 2: "2 bottles..." / "Take one down..." / "1 bottle..." (singular next)
-   - Verses 3-99: Standard plural form with decrementing count
-   - Invalid input (n < 0 or n > 99): returns error
+1. **`Solve(puzzle string) (map[string]int, error)`** — Solves an alphametics puzzle
+   - Accepts a puzzle string with zero or more `+` operators and one `==` operator
+   - Returns a `map[string]int` mapping each letter to its unique digit (0-9)
+   - Each letter must map to a different digit
+   - Leading digits of multi-digit numbers must not be zero
+   - Returns an error if no valid solution exists
 
-2. **`Verses(start, stop int) (string, error)`** — Returns verses from `start` down to `stop`
-   - Each verse separated by a blank line
-   - Validates start and stop are in range [0, 99]
-   - Validates start >= stop
-   - Returns error for invalid inputs
+2. **All 10 test cases pass** (`go test -v` in `go/exercises/practice/alphametics/`):
+   - "puzzle with three letters": `I + BB == ILL` -> `{B:9, I:1, L:0}`
+   - "solution must have unique value for each letter": `A == B` -> error
+   - "leading zero solution is invalid": `ACA + DD == BD` -> error
+   - "puzzle with two digits final carry": `A + A + ... + B == BCC` -> `{A:9, B:1, C:0}`
+   - "puzzle with four letters": `AS + A == MOM` -> `{A:9, M:1, O:0, S:2}`
+   - "puzzle with six letters": `NO + NO + TOO == LATE` -> `{A:0, E:2, L:1, N:7, O:4, T:9}`
+   - "puzzle with seven letters": `HE + SEES + THE == LIGHT` -> `{E:4, G:2, H:5, I:0, L:1, S:9, T:7}`
+   - "puzzle with eight letters": `SEND + MORE == MONEY` -> `{D:7, E:5, M:1, N:6, O:0, R:8, S:9, Y:2}`
+   - "puzzle with ten letters": `AND + A + STRONG + ... == DEFENSE` -> `{A:5, D:3, E:4, F:7, G:8, N:0, O:2, R:1, S:6, T:9}`
+   - "puzzle with ten letters and 199 addends": large puzzle -> `{A:1, E:0, F:5, H:8, I:7, L:2, O:6, R:3, S:4, T:9}`
 
-3. **`Song() string`** — Returns the complete song (all verses from 99 down to 0)
+3. **Benchmarks run** without error
 
-4. **All existing tests pass** (`go test -v ./...` in `go/exercises/practice/beer-song/`)
+4. **Package name:** `alphametics`
 
-5. **Package name:** `beer`
-
-6. **Module:** `beer` with `go 1.18`
+5. **Module:** `alphametics` with `go 1.18`
 
 ## Key Constraints
 
 - Must follow existing exercism exercise conventions in the repository
-- No external dependencies
-- Must handle edge cases: singular "bottle" vs plural "bottles", "Take it down" vs "Take one down", "No more" vs number
+- No external dependencies (standard library only)
+- Test files (`alphametics_test.go`, `cases_test.go`) are read-only exercise specifications
+- Must handle edge cases: leading zero rejection, no-solution detection, multi-addend puzzles

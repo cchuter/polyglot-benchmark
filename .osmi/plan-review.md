@@ -1,34 +1,33 @@
-# Plan Review: polyglot-go-beer-song
+# Plan Review: polyglot-go-alphametics (Issue #21)
 
-## Reviewer: Automated code review agent
+## Reviewer: Self-review (no codex agent available)
 
 ## Evaluation
 
 ### 1. Plan Soundness: Acceptable
-The plan correctly identifies that the implementation already exists and no code changes are needed. Work is purely verification and branch management.
+The plan correctly identifies that the implementation already exists and passes all tests. Work is verification and branch management.
 
 ### 2. Correctness: Pass
-All 11 tests pass. The implementation is identical to the Exercism reference solution at `.meta/example.go`.
+All 10 test cases pass in ~1.2 seconds. The implementation correctly:
+- Parses puzzles with multiple addends and `==` operator
+- Uses permutation-based brute force to try all P(10, n) digit assignments
+- Validates column-by-column addition with carry propagation
+- Checks `carry == 0` at the end to prevent false positives
+- Validates no leading zeros on any multi-digit word (improvement over `.meta/example.go`)
 
 ### 3. Edge Cases: Pass
-All edge cases are correctly handled:
-- Standard verses (3-99): plural form
-- Verse 2: transition to singular "1 bottle"
-- Verse 1: singular "bottle", "Take it down", "no more bottles"
-- Verse 0: "No more bottles", "Go to the store"
-- Invalid inputs: proper error returns
-- Boundary values work correctly even though not all are explicitly tested
+- `A == B`: correctly returns error (unique value constraint means A != B, but equation requires A == B)
+- `ACA + DD == BD`: correctly returns error (leading zero constraint)
+- 199-addend puzzle: handled within time limits
+- Multi-digit carry (A+A+...+A+B == BCC): correctly handled
 
 ### 4. Code Quality: Good
-- Clean switch statement usage
-- Proper `bytes.Buffer` for string concatenation
-- Descriptive error messages with `fmt.Errorf`
-- Minor style observations (not blocking):
-  - Discarded errors in `Song()` and `Verses()` are safe due to prior bounds checking
-  - Named return with bare return in `Song()` is valid but less explicit
-  - Yoda conditions (`0 > n`) vs conventional (`n < 0`)
+- Clean separation of concerns: parsing, solving, result formatting
+- Permutation generator correctly pre-allocates capacity
+- No external dependencies
+- Proper use of `errors.New` for error returns
 
-### 5. Test Match: Pass
-11/11 tests pass including benchmarks.
+### 5. Diff from `.meta/example.go`
+The current implementation adds `leadingLetters` tracking to the `problem` struct and checks all multi-digit words for leading zeros (not just the answer row). This is a correctness improvement.
 
-## Verdict: No changes required. Proceed with implementation phase (branch creation and verification).
+## Verdict: No code changes required. Proceed with implementation phase (branch creation and verification).

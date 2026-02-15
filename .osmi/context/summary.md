@@ -1,23 +1,29 @@
-# Context: polyglot-go-beer-song (Issue #15)
+# Context: polyglot-go-alphametics (Issue #21)
 
 ## Key Decisions
-- The beer-song implementation already existed from commit `0f3181e` (PR #6)
-- All tests pass, code is clean and idiomatic Go
-- No code modifications were needed — pure verification workflow
+
+1. **No code changes needed**: The alphametics implementation at `go/exercises/practice/alphametics/alphametics.go` was already complete and correct from commit `80330aa` (PR #14)
+2. **Verification-only workflow**: Since the implementation existed, the team focused on verification rather than implementation
+3. **Independent verification**: The verifier ran tests independently when the executor had stale results, ensuring accurate validation
 
 ## Files in Play
-- `go/exercises/practice/beer-song/beer_song.go` — Implementation (3 functions: Song, Verses, Verse)
-- `go/exercises/practice/beer-song/beer_song_test.go` — Tests (12 test cases + 2 benchmarks)
-- `go/exercises/practice/beer-song/go.mod` — Module definition (beer, go 1.18)
+
+- `go/exercises/practice/alphametics/alphametics.go` — Implementation (Solve function with permutation-based solver)
+- `go/exercises/practice/alphametics/alphametics_test.go` — Test runner and benchmark
+- `go/exercises/practice/alphametics/cases_test.go` — 10 test cases
+- `go/exercises/practice/alphametics/go.mod` — Module definition (alphametics, go 1.18)
+
+## Implementation Details
+
+- **Algorithm**: Permutation-based brute-force solver
+- **Key improvement over `.meta/example.go`**: Checks leading zeros on ALL multi-digit words, not just the answer
+- **Performance**: ~1.2s for all 10 tests including a 199-addend stress test
+- **Package**: `alphametics`, module `alphametics`, Go 1.18
 
 ## Test Results
-All 12 tests pass. No build errors. No vet warnings.
 
-## Architecture Notes
-- Package `beer` with three exported functions
-- Uses `bytes.Buffer` for efficient string concatenation
-- Special cases for verses 0, 1, 2; default handles 3-99
-- Error handling for out-of-range inputs
+10/10 tests pass. `go vet` clean. `gofmt` clean. Benchmarks run successfully.
 
 ## Status
-Verified and ready to close issue #15.
+
+Verified and ready to close issue #21.
