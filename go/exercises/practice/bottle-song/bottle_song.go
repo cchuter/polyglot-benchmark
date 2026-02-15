@@ -23,39 +23,31 @@ func capitalize(s string) string {
 	return strings.ToUpper(s[:1]) + s[1:]
 }
 
+func bottleWord(n int) string {
+	if n == 1 {
+		return "bottle"
+	}
+	return "bottles"
+}
+
 func verse(n int) []string {
-	switch {
-	case n == 1:
-		return []string{
-			"One green bottle hanging on the wall,",
-			"One green bottle hanging on the wall,",
-			"And if one green bottle should accidentally fall,",
-			"There'll be no green bottles hanging on the wall.",
-		}
-	case n == 2:
-		return []string{
-			"Two green bottles hanging on the wall,",
-			"Two green bottles hanging on the wall,",
-			"And if one green bottle should accidentally fall,",
-			"There'll be one green bottle hanging on the wall.",
-		}
-	default:
-		return []string{
-			fmt.Sprintf("%s green bottles hanging on the wall,", capitalize(numberToWord[n])),
-			fmt.Sprintf("%s green bottles hanging on the wall,", capitalize(numberToWord[n])),
-			"And if one green bottle should accidentally fall,",
-			fmt.Sprintf("There'll be %s green bottles hanging on the wall.", numberToWord[n-1]),
-		}
+	word := numberToWord[n]
+	nextWord := numberToWord[n-1]
+	return []string{
+		fmt.Sprintf("%s green %s hanging on the wall,", capitalize(word), bottleWord(n)),
+		fmt.Sprintf("%s green %s hanging on the wall,", capitalize(word), bottleWord(n)),
+		"And if one green bottle should accidentally fall,",
+		fmt.Sprintf("There'll be %s green %s hanging on the wall.", nextWord, bottleWord(n-1)),
 	}
 }
 
 func Recite(startBottles, takeDown int) []string {
-	verses := []string{}
+	var result []string
 	for i := startBottles; i > startBottles-takeDown; i-- {
-		verses = append(verses, verse(i)...)
-		if i > startBottles-takeDown+1 {
-			verses = append(verses, "")
+		if i < startBottles {
+			result = append(result, "")
 		}
+		result = append(result, verse(i)...)
 	}
-	return verses
+	return result
 }

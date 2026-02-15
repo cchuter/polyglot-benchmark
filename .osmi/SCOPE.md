@@ -1,4 +1,4 @@
-# Scope: bottle-song Exercise (Issue #38)
+# Scope: bottle-song Exercise (Issue #45)
 
 ## In Scope
 

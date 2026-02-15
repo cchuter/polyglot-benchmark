@@ -1,4 +1,4 @@
-# Goal: Implement bottle-song Exercise in Go (Issue #38)
+# Goal: Implement bottle-song Exercise in Go (Issue #45)
 
 ## Problem Statement
 

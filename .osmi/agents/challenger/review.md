@@ -1,71 +1,46 @@
-# Challenger Review: bottle-song Implementation
+# Bottle Song Implementation Review
 
 ## Verdict: PASS
 
-The implementation is correct and will pass all 7 test cases.
+The implementation is correct and should pass all 7 test cases.
 
-## Test Case Trace
+## Detailed Review
 
-### Test 1: "first generic verse" (startBottles=10, takeDown=1)
-- `verse(10)` hits `default` case: capitalize("ten") = "Ten", numberToWord[9] = "nine"
-- Output: `["Ten green bottles hanging on the wall,", ..., "There'll be nine green bottles hanging on the wall."]`
-- **PASS**
+### Number-to-word mapping (lines 8-20)
+- Maps 0-10 correctly: no, one, two, three, four, five, six, seven, eight, nine, ten
+- All values needed by tests are present
+- Status: PASS
 
-### Test 2: "last generic verse" (startBottles=3, takeDown=1)
-- `verse(3)` hits `default` case: capitalize("three") = "Three", numberToWord[2] = "two"
-- Output: `["Three green bottles hanging on the wall,", ..., "There'll be two green bottles hanging on the wall."]`
-- **PASS**
+### Singular/plural handling (lines 26-31)
+- `bottleWord(1)` returns "bottle" (singular)
+- `bottleWord(n)` for n != 1 returns "bottles" (plural)
+- Correctly applied to both current count (lines 1-2) and next count (line 4)
+- Status: PASS
 
-### Test 3: "verse with 2 bottles" (startBottles=2, takeDown=1)
-- `verse(2)` hits `case n == 2`: hardcoded with plural "bottles" in lines 1-2, singular "bottle" in line 4
-- Output: `["Two green bottles hanging on the wall,", ..., "There'll be one green bottle hanging on the wall."]`
-- **PASS**
+### Capitalization (lines 22-24, 33-42)
+- Lines 1-2 of each verse use `capitalize()` on the number word (uppercase first letter)
+- Line 3 is hardcoded with "And" capitalized
+- Line 4 uses lowercase `nextWord` directly (no capitalization)
+- Status: PASS
 
-### Test 4: "verse with 1 bottle" (startBottles=1, takeDown=1)
-- `verse(1)` hits `case n == 1`: hardcoded with singular "bottle" in lines 1-2, "no green bottles" in line 4
-- Output: `["One green bottle hanging on the wall,", ..., "There'll be no green bottles hanging on the wall."]`
-- **PASS**
+### Verse separators (lines 44-52)
+- Empty string "" inserted between consecutive verses
+- Not added before first verse or after last verse
+- Logic: separator added when `i < startBottles` (i.e., not the first verse)
+- Status: PASS
 
-### Test 5: "first two verses" (startBottles=10, takeDown=2)
-- Loop: i=10 (verse + separator), i=9 (verse, no trailing separator)
-- Separator logic: `10 > 10-2+1=9` is true, so empty string appended after verse 10
-- `9 > 9` is false, so no trailing separator
-- **PASS**
+### Edge cases
+- verse(1): word="one", bottleWord(1)="bottle" (singular), nextWord="no", bottleWord(0)="bottles" (plural)
+- Produces: "One green bottle...no green bottles" - correct
+- Status: PASS
 
-### Test 6: "last three verses" (startBottles=3, takeDown=3)
-- Loop: i=3 (default, separator), i=2 (case 2, separator), i=1 (case 1, no trailing separator)
-- Separator logic: `3 > 1` true, `2 > 1` true, `1 > 1` false
-- **PASS**
+### Test case trace-through
+1. first generic verse (10,1): Ten...nine - PASS
+2. last generic verse (3,1): Three...two - PASS
+3. verse with 2 bottles (2,1): Two bottles...one bottle - PASS
+4. verse with 1 bottle (1,1): One bottle...no bottles - PASS
+5. first two verses (10,2): verses 10,9 with separator - PASS
+6. last three verses (3,3): verses 3,2,1 with separators - PASS
+7. all verses (10,10): all 10 verses with separators - PASS
 
-### Test 7: "all verses" (startBottles=10, takeDown=10)
-- Loop i=10 down to 1. Each verse correct. Separators between all consecutive verses.
-- i=10..2 get separators, i=1 does not (since `1 > 1` is false)
-- **PASS**
-
-## Edge Case Analysis
-
-| Edge Case | Handling | Status |
-|-----------|----------|--------|
-| Singular "bottle" (n=1 in lines 1-2) | Explicit `case n == 1` with hardcoded singular | Correct |
-| Singular "bottle" (n=2 remaining, line 4) | Explicit `case n == 2` with hardcoded singular in line 4 | Correct |
-| Plural "bottles" (n >= 2 in lines 1-2) | Default case uses plural | Correct |
-| "no green bottles" (n=0 remaining) | Handled in `case n == 1` with hardcoded line 4 | Correct |
-| Capitalization (first line of verse) | `capitalize()` uppercases first byte | Correct |
-| Lowercase in line 4 | Uses `numberToWord[n-1]` directly (lowercase) | Correct |
-| Verse separation | Empty string `""` between verses, none after last | Correct |
-
-## Code Quality
-
-- **Structure**: Clean separation into `numberToWord` map, `capitalize` helper, `verse` generator, and `Recite` orchestrator. Matches the plan exactly.
-- **Imports**: `fmt` (used in `Sprintf`) and `strings` (used in `ToUpper`) -- both used, no unused imports.
-- **No code smells**: No dead code, no unnecessary complexity.
-- **Plan adherence**: Implementation follows the plan precisely -- explicit cases for n==1 and n==2, default for n>=3, loop with separator logic.
-
-## Minor Observations (non-blocking)
-
-1. The `capitalize` function would panic on an empty string, but it's only called with values from `numberToWord` which are all non-empty. This is acceptable for an internal helper.
-2. The `Title` function defined in the test file is unused by the implementation -- this is fine since it's provided by the test harness for students who want it.
-
-## Conclusion
-
-The implementation is correct, clean, and follows the plan. No changes needed. Ready for test execution.
+## No issues found.
