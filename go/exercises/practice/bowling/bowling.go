@@ -1,109 +1,132 @@
+// Package bowling implements scoring for the game of bowling.
 package bowling
 
 import "errors"
 
-// Game tracks the state of a bowling game.
+var (
+	ErrNegativeRollIsInvalid        = errors.New("Negative roll is invalid")
+	ErrPinCountExceedsPinsOnTheLane = errors.New("Pin count exceeds pins on the lane")
+	ErrPrematureScore               = errors.New("Score cannot be taken until the end of the game")
+	ErrCannotRollAfterGameOver      = errors.New("Cannot roll after game is over")
+)
+
+const (
+	pinsPerFrame      = 10
+	framesPerGame     = 10
+	maxRollsPerFrame  = 2
+	maxRollsLastFrame = 3
+	maxRolls          = (maxRollsPerFrame * (framesPerGame - 1)) + maxRollsLastFrame
+)
+
+// Game records the data to track a game's progress.
 type Game struct {
-	rolls        []int
-	currentFrame int
-	currentBall  int
-	done         bool
+	rolls       [maxRolls]int // storage for the rolls
+	nRolls      int           // counts the rolls accumulated.
+	nFrames     int           // counts completed frames, up to framesPerGame.
+	rFrameStart int           // tracks the starting roll of each frame.
 }
 
-// NewGame creates a new bowling game.
+// NewGame returns a fresh zero-valued game struct.
 func NewGame() *Game {
 	return &Game{}
 }
 
-// Roll records a roll of the ball knocking down the given number of pins.
+// Roll records one roll for a bowling frame with 'pins' knocked down.
+// An error is possible depending on pin value and previous rolls.
 func (g *Game) Roll(pins int) error {
-	if g.done {
-		return errors.New("cannot roll after game is over")
+	// Validate pin count on roll.
+	if pins > pinsPerFrame {
+		return ErrPinCountExceedsPinsOnTheLane
 	}
 	if pins < 0 {
-		return errors.New("negative roll is invalid")
+		return ErrNegativeRollIsInvalid
 	}
-	if pins > 10 {
-		return errors.New("pin count exceeds pins on the lane")
+	if g.completedFrames() == framesPerGame {
+		return ErrCannotRollAfterGameOver
 	}
-
-	if g.currentFrame < 9 {
-		if g.currentBall == 0 {
-			if pins == 10 {
-				g.rolls = append(g.rolls, pins)
-				g.currentFrame++
-			} else {
-				g.rolls = append(g.rolls, pins)
-				g.currentBall = 1
+	// Record the roll.
+	g.rolls[g.nRolls] = pins
+	g.nRolls++
+	if pins == pinsPerFrame && g.completedFrames() < framesPerGame-1 {
+		// Frames before last one can be strikes with no problems.
+		g.completeTheFrame()
+		return nil
+	}
+	if g.rollsThisFrame() == maxRollsPerFrame {
+		// Have counted normal max rolls on a frame.
+		if g.rawFrameScore(g.rFrameStart) > pinsPerFrame {
+			// Unless we have completed all but last frame, cannot count > pinsPerFrame.
+			if g.completedFrames() != framesPerGame-1 || !g.isStrike(g.rFrameStart) {
+				return ErrPinCountExceedsPinsOnTheLane
 			}
-		} else {
-			prev := g.rolls[len(g.rolls)-1]
-			if prev+pins > 10 {
-				return errors.New("pin count exceeds pins on the lane")
-			}
-			g.rolls = append(g.rolls, pins)
-			g.currentFrame++
-			g.currentBall = 0
 		}
-	} else {
-		switch g.currentBall {
-		case 0:
-			g.rolls = append(g.rolls, pins)
-			g.currentBall = 1
-		case 1:
-			firstRoll := g.rolls[len(g.rolls)-1]
-			if firstRoll == 10 {
-				// First was a strike, pins reset
-			} else if firstRoll+pins > 10 {
-				return errors.New("pin count exceeds pins on the lane")
-			}
-			g.rolls = append(g.rolls, pins)
-			if firstRoll == 10 || firstRoll+pins == 10 {
-				g.currentBall = 2
-			} else {
-				g.done = true
-			}
-		case 2:
-			firstRoll := g.rolls[len(g.rolls)-2]
-			secondRoll := g.rolls[len(g.rolls)-1]
-			if firstRoll == 10 && secondRoll == 10 {
-				// Two strikes, pins reset
-			} else if firstRoll == 10 {
-				// First was strike, second was not; pins not reset
-				if secondRoll+pins > 10 {
-					return errors.New("pin count exceeds pins on the lane")
+		if g.completedFrames() < framesPerGame-1 {
+			// Completed frames before last one with maxRollsPerFrame.
+			g.completeTheFrame()
+			return nil
+		}
+		// For last frame, is it complete now ?
+		if g.rawFrameScore(g.rFrameStart) < pinsPerFrame {
+			// Yes, complete.
+			g.completeTheFrame()
+		}
+	} else if g.rollsThisFrame() == maxRollsLastFrame {
+		// Extra roll on the last frame.
+		if g.isStrike(g.rFrameStart) {
+			// First was a strike.
+			if !g.isStrike(g.rFrameStart + 1) {
+				// Second was NOT a strike, so last 2 rolls cannot exceed pinsPerFrame.
+				if g.strikeBonus(g.rFrameStart) > pinsPerFrame {
+					return ErrPinCountExceedsPinsOnTheLane
 				}
 			}
-			// Spare case: pins reset, 0-10 valid (already checked by top-level)
-			g.rolls = append(g.rolls, pins)
-			g.done = true
+			if b := g.strikeBonus(g.rFrameStart); b > pinsPerFrame && b < 2*pinsPerFrame {
+				// Unless one of the bonuses was a strike, bonus frames too high.
+				if !g.isStrike(g.rFrameStart+1) && !g.isStrike(g.rFrameStart+2) {
+					return ErrPinCountExceedsPinsOnTheLane
+				}
+			}
+		} else if !g.isSpare(g.rFrameStart) {
+			// Attempt to make extra roll in last frame without strike or spare.
+			return ErrCannotRollAfterGameOver
 		}
+		// Completed last frame.
+		g.completeTheFrame()
 	}
 
 	return nil
 }
 
-// Score returns the total score for a completed game.
+// Score returns the score of the game with a potential error.
 func (g *Game) Score() (int, error) {
-	if !g.done {
-		return 0, errors.New("score cannot be taken until the end of the game")
+	if g.completedFrames() != framesPerGame {
+		return 0, ErrPrematureScore
 	}
 
 	score := 0
-	rollIndex := 0
+	frameStart := 0
 
-	for frame := 0; frame < 10; frame++ {
-		if g.rolls[rollIndex] == 10 {
-			score += 10 + g.rolls[rollIndex+1] + g.rolls[rollIndex+2]
-			rollIndex++
-		} else if g.rolls[rollIndex]+g.rolls[rollIndex+1] == 10 {
-			score += 10 + g.rolls[rollIndex+2]
-			rollIndex += 2
-		} else {
-			score += g.rolls[rollIndex] + g.rolls[rollIndex+1]
-			rollIndex += 2
+	for frame := 0; frame < framesPerGame; frame++ {
+		switch {
+		case g.isStrike(frameStart):
+			score += pinsPerFrame + g.strikeBonus(frameStart)
+			frameStart++
+		case g.isSpare(frameStart):
+			score += pinsPerFrame + g.spareBonus(frameStart)
+			frameStart += maxRollsPerFrame
+		default:
+			score += g.rawFrameScore(frameStart)
+			frameStart += maxRollsPerFrame
 		}
 	}
-
 	return score, nil
 }
+
+func (g *Game) rollsThisFrame() int     { return g.nRolls - g.rFrameStart }
+func (g *Game) completeTheFrame()       { g.nFrames++; g.rFrameStart = g.nRolls }
+func (g *Game) completedFrames() int    { return g.nFrames }
+func (g *Game) isStrike(f int) bool     { return g.rolls[f] == pinsPerFrame }
+func (g *Game) rawFrameScore(f int) int { return g.rolls[f] + g.rolls[f+1] }
+func (g *Game) spareBonus(f int) int    { return g.rolls[f+2] }
+func (g *Game) strikeBonus(f int) int   { return g.rolls[f+1] + g.rolls[f+2] }
+func (g *Game) isSpare(f int) bool      { return (g.rolls[f] + g.rolls[f+1]) == pinsPerFrame }
