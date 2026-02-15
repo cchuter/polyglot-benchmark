@@ -1,49 +1,52 @@
-# Implementation Plan: Fix bottle-song (Issue #26)
+# Implementation Plan: bottle-song (Issue #38)
 
 ## Overview
 
-Replace deprecated `strings.Title()` calls in `bottle_song.go` with a simple manual capitalization helper that uppercases the first letter of a string.
+Implement the `Recite` function in `bottle_song.go` to generate "Ten Green Bottles" lyrics. The function accepts a starting bottle count and number of verses to produce.
 
 ## Files to Modify
 
-1. **`go/exercises/practice/bottle-song/bottle_song.go`** — The only file to change.
+1. **`go/exercises/practice/bottle-song/bottle_song.go`** — The only file to change. Currently contains only the package declaration.
 
-## Changes
+## Approach
 
-### 1. Add a `capitalize` helper function
+### 1. Number-to-word mapping
 
-Replace the `strings.Title` usage with a simple helper:
+Create a `map[int]string` for numbers 0-10:
+- 0 → "no", 1 → "one", 2 → "two", ..., 10 → "ten"
 
-```go
-func capitalize(s string) string {
-    if s == "" {
-        return s
-    }
-    return strings.ToUpper(s[:1]) + s[1:]
-}
-```
+### 2. Capitalize helper
 
-This works because all number words in the map are ASCII lowercase strings, so `s[:1]` safely captures the first byte/rune.
+Implement a simple `capitalize` function that uppercases the first byte of a string. All number words are ASCII, so byte-level operation is safe. This avoids using the deprecated `strings.Title`.
 
-### 2. Replace `strings.Title(numberToWord[n])` with `capitalize(numberToWord[n])`
+### 3. Verse generator
 
-In the `verse` function's default case (lines 39-40), change:
-- `strings.Title(numberToWord[n])` → `capitalize(numberToWord[n])`
+Create a `verse(n int) []string` function that returns 4 lines for bottle count `n`:
+- Lines 1-2: `"{Capitalized_word} green bottle(s) hanging on the wall,"`
+- Line 3: `"And if one green bottle should accidentally fall,"`
+- Line 4: `"There'll be {word} green bottle(s) hanging on the wall."`
 
-### 3. Remove unused import
+Key logic:
+- Use "bottle" (singular) when count is exactly 1, "bottles" otherwise
+- Line 4 uses `n-1` for the remaining count
+- Numbers in line 4 are lowercase
 
-After removing `strings.Title`, the `strings` package import may still be needed if we use `strings.ToUpper`. Check and keep only necessary imports.
+### 4. Recite function
+
+`Recite(startBottles, takeDown int) []string`:
+- Loop from `startBottles` down for `takeDown` iterations
+- Append each verse's 4 lines
+- Between verses, append an empty string `""`
+- Return the accumulated slice
 
 ## Rationale
 
-- `strings.Title` is deprecated since Go 1.18 (SA1019)
-- The recommended replacement `golang.org/x/text/cases` requires an external dependency, which is not allowed
-- A manual `capitalize` function is the simplest correct approach since all input strings are simple ASCII lowercase words
-- No API changes needed — the `Recite` function signature stays the same
+- Using explicit cases for n==1 and n==2 in the verse function handles the singular/plural transitions cleanly (n==1 needs singular in lines 1-2 and "no bottles" in line 4; n==2 needs plural in lines 1-2 but singular in line 4)
+- The approach matches the reference solution pattern in `.meta/example.go`
+- No external dependencies needed
 
 ## Ordering
 
-1. Add `capitalize` helper function
-2. Replace `strings.Title` calls with `capitalize`
-3. Clean up imports if needed
-4. Run tests and staticcheck to verify
+1. Write the complete implementation in `bottle_song.go`
+2. Run `go test -v` to verify all 7 tests pass
+3. Run `go vet` to check for issues

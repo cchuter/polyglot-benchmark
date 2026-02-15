@@ -1,23 +1,19 @@
-# Context Summary: bottle-song (Issue #26)
+# Context Summary: bottle-song (Issue #38)
 
 ## Key Decisions
-
-- Replaced `strings.Title()` with a custom `capitalize()` function to avoid deprecated API
-- Used `strings.ToUpper(s[:1]) + s[1:]` which is safe for ASCII-only inputs (number words "one" through "ten")
-- No external dependencies added — standard library only
+- Used `capitalize` helper with `strings.ToUpper(s[:1])` instead of deprecated `strings.Title`
+- Used switch cases for n==1 and n==2 to handle singular/plural edge cases
+- Default case handles n>=3 with `fmt.Sprintf` and the numberToWord map
+- No external dependencies added - standard library only
 
 ## Files Modified
-
-- `go/exercises/practice/bottle-song/bottle_song.go` — Added `capitalize` helper, replaced `strings.Title` calls
+- `go/exercises/practice/bottle-song/bottle_song.go` - Full implementation of `Recite` function
 
 ## Test Results
-
 - 7/7 tests pass (`go test -v`)
-- No staticcheck warnings (`staticcheck ./...`)
 - No go vet warnings (`go vet ./...`)
-- Build succeeds (`go build ./...`)
+- Build succeeds
 
 ## Commit
-
-- `6de25d9` — "fix: replace deprecated strings.Title with capitalize helper in bottle-song"
-- Branch: `issue-26`
+- `d1f210c` - "feat: implement Recite function for bottle-song exercise"
+- Branch: `issue-38`

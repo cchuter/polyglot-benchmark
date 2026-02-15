@@ -1,21 +1,31 @@
-# Goal: Fix bottle-song Go exercise (Issue #26)
+# Goal: Implement bottle-song Exercise in Go (Issue #38)
 
 ## Problem Statement
 
-The `bottle-song` Go exercise implements the "Ten Green Bottles" children's song. The existing implementation in `go/exercises/practice/bottle-song/bottle_song.go` uses `strings.Title()` which has been deprecated since Go 1.18. The `staticcheck` linter flags this as SA1019. The implementation needs to be updated to avoid the deprecated function while keeping all tests passing.
+Implement the `Recite` function in `go/exercises/practice/bottle-song/bottle_song.go` that generates lyrics for the "Ten Green Bottles" children's song. The function takes two parameters:
+- `startBottles`: the number of bottles to start from (1-10)
+- `takeDown`: how many verses to recite
 
 ## Acceptance Criteria
 
-1. All 7 test cases in `bottle_song_test.go` pass (`go test -v` shows PASS for every case)
-2. `staticcheck ./...` produces no warnings (no SA1019 deprecation warnings)
-3. `go vet ./...` produces no warnings
-4. The `Recite(startBottles, takeDown int) []string` function signature is preserved
-5. The output matches the expected lyrics exactly (capitalized number words, correct singular/plural "bottle"/"bottles", correct "no green bottles" for zero)
-6. No external dependencies added (go.mod stays at `go 1.18` with no require statements)
+1. `Recite(startBottles, takeDown int) []string` returns the correct lyrics as a slice of strings
+2. Each verse consists of 4 lines:
+   - Line 1: `"{N} green bottle(s) hanging on the wall,"`
+   - Line 2: same as line 1
+   - Line 3: `"And if one green bottle should accidentally fall,"`
+   - Line 4: `"There'll be {N-1} green bottle(s) hanging on the wall."`
+3. Numbers are spelled out as words with the first letter capitalized in lines 1-2 (e.g., "Ten", "Nine")
+4. Numbers are lowercase in line 4 (e.g., "nine", "eight")
+5. Singular "bottle" is used when count is 1; plural "bottles" otherwise
+6. When count reaches 0, use "no green bottles"
+7. Multiple verses are separated by an empty string `""` in the slice
+8. All 7 test cases in `cases_test.go` pass: single verses (10, 3, 2, 1), first two verses, last three verses, and all verses
+9. `go vet` produces no warnings
+10. No external dependencies added
 
 ## Key Constraints
 
-- Cannot use `golang.org/x/text/cases` (no external dependencies allowed)
-- Must replace `strings.Title` with a manual capitalization approach
-- Test files (`bottle_song_test.go`, `cases_test.go`) are auto-generated and must not be modified
-- The package name must remain `bottlesong`
+- Package must be `bottlesong`
+- Must use Go 1.18+ (as specified in go.mod)
+- The `Title` function is provided in the test file for title-casing strings
+- No external dependencies allowed
