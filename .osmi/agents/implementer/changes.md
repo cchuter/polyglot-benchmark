@@ -1,45 +1,15 @@
-# Implementer Change Log
+# Changes - beer-song implementation
 
-## 2026-02-15: Implement Cost function for book-store exercise
+## What was done
+- Implemented three exported functions in `go/exercises/practice/beer-song/beer_song.go`:
+  - `Song()` - Returns the full lyrics for 99 bottles of beer (verses 99 down to 0)
+  - `Verses(start, stop int)` - Returns an excerpt of the lyrics between start and stop verses, with input validation
+  - `Verse(n int)` - Returns a single verse with proper grammar handling for singular/plural bottles and special cases (0, 1, 2)
 
-**File changed:** `go/exercises/practice/book-store/book_store.go`
-
-**Summary:** Implemented the `Cost` function using a frequency-based recursive search with memoization to find the minimum cost for a basket of books.
-
-**Details:**
-- `Cost(books []int) int` — entry point; builds a frequency array from book IDs (1-5), sorts descending for canonical state, and delegates to `minCost`.
-- `minCost(freq [5]int, memo map[[5]int]int) int` — recursively tries all group sizes from 1 to the number of distinct books remaining, memoizing on the sorted frequency array to avoid redundant computation.
-- `groupCost(n int) int` — calculates the discounted price (in cents) for a group of `n` distinct books using the discount table: 0% for 1, 5% for 2, 10% for 3, 20% for 4, 25% for 5.
-- Discount table stored as `var discounts = [6]int{0, 0, 5, 10, 20, 25}`.
-
-**Build verification:** `go build ./...` passed with no errors.
-
-## 2026-02-15: Implement Recite function for bottle-song exercise
-
-**File changed:** `go/exercises/practice/bottle-song/bottle_song.go`
-
-**Summary:** Implemented the `Recite` function to generate "Ten Green Bottles" song lyrics.
-
-**Details:**
-- Added imports: `fmt`, `strings`
-- `numberToWord` map (`map[int]string`) mapping integers 0-10 to English words
-- `capitalize(s string) string` helper to uppercase the first character using `strings.ToUpper`
-- `verse(n int) []string` function with switch cases for n==1 (singular bottle, "no" remaining), n==2 (plural bottles, singular remaining), and default (plural both)
-- `Recite(startBottles, takeDown int) []string` loops from `startBottles` downward for `takeDown` iterations, assembling verses separated by empty strings
-
-**Test verification:** All 7 tests pass (`go test -v`).
-
-## 2026-02-15: Re-implement Recite function for bottle-song exercise
-
-**File changed:** `go/exercises/practice/bottle-song/bottle_song.go`
-
-**Summary:** Re-implemented the `Recite` function with a cleaner approach using helper functions.
-
-**Details:**
-- `numberToWord` map (`map[int]string`) mapping integers 0-10 to English words
-- `capitalize(s string) string` — uppercases the first character
-- `bottleWord(n int) string` — returns "bottle" (singular) or "bottles" (plural)
-- `verse(n int) []string` — generates the 4 lines of a single verse using fmt.Sprintf
-- `Recite(startBottles, takeDown int) []string` — loops from startBottles downward for takeDown iterations, assembling verses separated by empty strings
-
-**Commit:** `feat: implement Recite function for bottle-song exercise`
+## Key details
+- Verse 0: "No more bottles" / "Go to the store and buy some more"
+- Verse 1: "1 bottle" (singular) / "Take it down" (not "Take one down")
+- Verse 2: Special case to handle transition from plural to singular ("1 bottle")
+- Verses 3-99: Standard plural format
+- All functions include input validation returning errors for out-of-range values
+- Verses are separated by blank lines (extra newline between each verse)
