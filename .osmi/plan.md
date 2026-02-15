@@ -1,62 +1,49 @@
-# Implementation Plan: polyglot-go-beer-song (Issue #15)
+# Implementation Plan: Fix bottle-song (Issue #26)
 
-## Current State
+## Overview
 
-The beer-song exercise already has a complete implementation at `go/exercises/practice/beer-song/` that passes all tests. The implementation includes:
+Replace deprecated `strings.Title()` calls in `bottle_song.go` with a simple manual capitalization helper that uppercases the first letter of a string.
 
-- `beer_song.go` — Three functions: `Song()`, `Verses()`, `Verse()`
-- `beer_song_test.go` — Tests covering individual verses, verse ranges, full song, and error cases
-- `go.mod` — Module `beer` with Go 1.18
+## Files to Modify
 
-All 11 test cases pass, including benchmarks.
+1. **`go/exercises/practice/bottle-song/bottle_song.go`** — The only file to change.
 
-## Plan
+## Changes
 
-### Step 1: Create feature branch
+### 1. Add a `capitalize` helper function
 
-```
-git checkout -b issue-15
-```
+Replace the `strings.Title` usage with a simple helper:
 
-### Step 2: Verify implementation correctness
-
-Run full test suite to confirm all tests pass:
-```
-cd go/exercises/practice/beer-song && go test -v ./...
+```go
+func capitalize(s string) string {
+    if s == "" {
+        return s
+    }
+    return strings.ToUpper(s[:1]) + s[1:]
+}
 ```
 
-Verify the implementation handles all edge cases:
-- Standard verses (3-99): plural "bottles", "Take one down"
-- Verse 2: transition to singular "1 bottle"
-- Verse 1: singular "bottle", "Take it down", "no more bottles"
-- Verse 0: "No more bottles", "Go to the store"
-- Invalid inputs: returns error for out-of-range values
+This works because all number words in the map are ASCII lowercase strings, so `s[:1]` safely captures the first byte/rune.
 
-### Step 3: Verify code quality
+### 2. Replace `strings.Title(numberToWord[n])` with `capitalize(numberToWord[n])`
 
-- Run `go vet` for static analysis
-- Run `gofmt` to verify formatting
-- Confirm no unnecessary dependencies
+In the `verse` function's default case (lines 39-40), change:
+- `strings.Title(numberToWord[n])` → `capitalize(numberToWord[n])`
 
-### Step 4: Commit and push
+### 3. Remove unused import
 
-Create a commit on the `issue-15` branch that closes the issue.
+After removing `strings.Title`, the `strings` package import may still be needed if we use `strings.ToUpper`. Check and keep only necessary imports.
 
-## Files to Create or Modify
+## Rationale
 
-No code changes are expected — the existing implementation is complete and correct. The work is verification and branch/commit management.
+- `strings.Title` is deprecated since Go 1.18 (SA1019)
+- The recommended replacement `golang.org/x/text/cases` requires an external dependency, which is not allowed
+- A manual `capitalize` function is the simplest correct approach since all input strings are simple ASCII lowercase words
+- No API changes needed — the `Recite` function signature stays the same
 
-- `go/exercises/practice/beer-song/beer_song.go` — Verify (no changes expected)
-- `go/exercises/practice/beer-song/beer_song_test.go` — Read-only verification
-- `go/exercises/practice/beer-song/go.mod` — Verify (no changes expected)
+## Ordering
 
-## Architectural Decisions
-
-1. **No code changes needed** — The existing implementation is correct, idiomatic Go, and passes all tests.
-2. **Use feature branch workflow** — Create `issue-15` branch per the standard workflow.
-3. **Test file is read-only** — Following exercism conventions, the test file defines the exercise spec.
-
-## Risks
-
-- Low risk: the implementation already exists and passes all tests
-- If any issues are found during review, they will be addressed in the implementation phase
+1. Add `capitalize` helper function
+2. Replace `strings.Title` calls with `capitalize`
+3. Clean up imports if needed
+4. Run tests and staticcheck to verify

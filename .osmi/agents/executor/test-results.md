@@ -1,91 +1,52 @@
-# Beer Song - Build & Test Results
+# Executor Test Results
+
+**Date**: 2026-02-15
+**Package**: `bottlesong` (go/exercises/practice/bottle-song/)
 
 ## 1. `go build ./...`
 
-**Exit Code:** 0
+**Result**: PASS (no errors)
 
-**Output:**
-_(no output - build succeeded)_
+## 2. `go test -v`
 
----
+**Result**: PASS (all 7 tests pass)
 
-## 2. `go test -v ./...`
-
-**Exit Code:** 0
-
-**Output:**
 ```
-=== RUN   TestBottlesVerse
-=== RUN   TestBottlesVerse/a_typical_verse
-=== RUN   TestBottlesVerse/another_typical_verse
-=== RUN   TestBottlesVerse/verse_2
-=== RUN   TestBottlesVerse/verse_1
-=== RUN   TestBottlesVerse/verse_0
-=== RUN   TestBottlesVerse/invalid_verse
---- PASS: TestBottlesVerse (0.00s)
-    --- PASS: TestBottlesVerse/a_typical_verse (0.00s)
-    --- PASS: TestBottlesVerse/another_typical_verse (0.00s)
-    --- PASS: TestBottlesVerse/verse_2 (0.00s)
-    --- PASS: TestBottlesVerse/verse_1 (0.00s)
-    --- PASS: TestBottlesVerse/verse_0 (0.00s)
-    --- PASS: TestBottlesVerse/invalid_verse (0.00s)
-=== RUN   TestSeveralVerses
-=== RUN   TestSeveralVerses/multiple_verses
-=== RUN   TestSeveralVerses/a_different_set_of_verses
-=== RUN   TestSeveralVerses/invalid_start
-=== RUN   TestSeveralVerses/invalid_stop
-=== RUN   TestSeveralVerses/start_less_than_stop
---- PASS: TestSeveralVerses (0.00s)
-    --- PASS: TestSeveralVerses/multiple_verses (0.00s)
-    --- PASS: TestSeveralVerses/a_different_set_of_verses (0.00s)
-    --- PASS: TestSeveralVerses/invalid_start (0.00s)
-    --- PASS: TestSeveralVerses/invalid_stop (0.00s)
-    --- PASS: TestSeveralVerses/start_less_than_stop (0.00s)
-=== RUN   TestEntireSong
---- PASS: TestEntireSong (0.00s)
+=== RUN   TestRecite
+=== RUN   TestRecite/first_generic_verse
+=== RUN   TestRecite/last_generic_verse
+=== RUN   TestRecite/verse_with_2_bottles
+=== RUN   TestRecite/verse_with_1_bottle
+=== RUN   TestRecite/first_two_verses
+=== RUN   TestRecite/last_three_verses
+=== RUN   TestRecite/all_verses
+--- PASS: TestRecite (0.00s)
+    --- PASS: TestRecite/first_generic_verse (0.00s)
+    --- PASS: TestRecite/last_generic_verse (0.00s)
+    --- PASS: TestRecite/verse_with_2_bottles (0.00s)
+    --- PASS: TestRecite/verse_with_1_bottle (0.00s)
+    --- PASS: TestRecite/first_two_verses (0.00s)
+    --- PASS: TestRecite/last_three_verses (0.00s)
+    --- PASS: TestRecite/all_verses (0.00s)
 PASS
-ok  	beer	(cached)
+ok  	bottlesong	0.004s
 ```
-
----
 
 ## 3. `go vet ./...`
 
-**Exit Code:** 0
+**Result**: PASS (no issues)
 
-**Output:**
-_(no output - vet passed with no issues)_
+## 4. `staticcheck ./...`
 
----
-
-## 4. `go test -bench=. -benchmem ./...`
-
-**Exit Code:** 0
-
-**Output:**
-```
-goos: linux
-goarch: amd64
-pkg: beer
-cpu: AMD Ryzen Threadripper PRO 5995WX 64-Cores
-BenchmarkSeveralVerses-128     	  251890	      5312 ns/op	    3486 B/op	      21 allocs/op
-BenchmarkEntireSong-128        	   18686	     64883 ns/op	   57709 B/op	     106 allocs/op
-PASS
-ok  	beer	3.265s
-```
-
----
+**Result**: PASS (no issues)
 
 ## Summary
 
-| Command | Exit Code | Result |
-|---------|-----------|--------|
-| `go build ./...` | 0 | SUCCESS |
-| `go test -v ./...` | 0 | ALL 12 TESTS PASSED |
-| `go vet ./...` | 0 | NO ISSUES |
-| `go test -bench=. -benchmem ./...` | 0 | BENCHMARKS PASSED |
+| Check         | Result |
+|---------------|--------|
+| go build      | PASS   |
+| go test       | PASS (7/7) |
+| go vet        | PASS   |
+| staticcheck   | PASS   |
 
-**Total tests:** 12 (3 test suites: TestBottlesVerse with 6 subtests, TestSeveralVerses with 5 subtests, TestEntireSong)
-**Passed:** 12
-**Failed:** 0
-**Errors:** 0
+All checks pass with zero errors or warnings.

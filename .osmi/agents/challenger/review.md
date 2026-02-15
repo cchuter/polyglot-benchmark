@@ -1,107 +1,62 @@
-# Adversarial Code Review: beer-song Implementation
+# Challenger Review: bottle-song capitalize fix
 
-## Overall Verdict: PASS
+## Verdict: PASS
 
-The implementation is **correct and complete**. All acceptance criteria are met. No code changes required.
-
----
+The implementation correctly replaces the deprecated `strings.Title` with a manual `capitalize` helper, exactly as specified in the plan.
 
 ## Detailed Review
 
-### 1. Correctness: Verse(n int) (string, error)
+### 1. `strings.Title` completely removed?
 
-| Input | Expected Behavior | Actual | Status |
-|-------|-------------------|--------|--------|
-| n=0 | "No more bottles..." / "Go to the store..." | Hardcoded string matches test `verse0` | PASS |
-| n=1 | "1 bottle..." (singular) / "Take it down..." / "no more bottles..." | Hardcoded string matches test `verse1` | PASS |
-| n=2 | "2 bottles..." / "Take one down..." / "1 bottle..." (singular next) | Hardcoded string matches test `verse2` | PASS |
-| n=3-99 | Standard plural form with decrementing count | `fmt.Sprintf` with `n, n, n-1` — matches tests `verse3`, `verse8` | PASS |
-| n<0 | Returns error | `0 > n` catches negative values | PASS |
-| n>99 | Returns error | `n > 99` catches overflow values | PASS |
+**PASS.** No references to `strings.Title` exist in `bottle_song.go`. The only mentions are in `bottle_song_test.go` as comments documenting the exercism test infrastructure's own `Title` copy -- these are not production code and are not our concern.
 
-**Trace verification of Sprintf for default case (n=8):**
-- Format: `"%d bottles of beer on the wall, %d bottles of beer.\nTake one down and pass it around, %d bottles of beer on the wall.\n"`
-- With n=8: `"8 bottles of beer on the wall, 8 bottles of beer.\nTake one down and pass it around, 7 bottles of beer on the wall.\n"`
-- Matches test constant `verse8` exactly. CONFIRMED.
+### 2. Correctness of `capitalize` function
 
-### 2. Correctness: Verses(start, stop int) (string, error)
+**PASS.** The function:
 
-| Input | Expected Behavior | Actual | Status |
-|-------|-------------------|--------|--------|
-| (8, 6) | Verses 8, 7, 6 separated by blank lines | Loop produces correct output matching `verses86` | PASS |
-| (7, 5) | Verses 7, 6, 5 separated by blank lines | Loop produces correct output matching `verses75` | PASS |
-| (109, 5) | Error (start out of range) | `start > 99` catches it | PASS |
-| (99, -20) | Error (stop out of range) | `0 > stop` catches it | PASS |
-| (8, 14) | Error (start < stop) | `start < stop` catches it | PASS |
+```go
+func capitalize(s string) string {
+    if s == "" {
+        return s
+    }
+    return strings.ToUpper(s[:1]) + s[1:]
+}
+```
 
-**Blank line separation trace:**
-Each `Verse()` returns a string ending with `\n`. `Verses()` appends an additional `\n` after each verse. This produces `verse_text\n\n` between verses (blank line separator) and a trailing `\n\n` at the end. This matches the raw string test constants `verses86` and `verses75`, which both end with an empty line before the closing backtick.
+- Correctly uppercases the first character and preserves the rest.
+- All values in `numberToWord` ("one", "two", ..., "ten") are simple ASCII lowercase strings. `s[:1]` safely captures one byte = one rune for all of them.
+- Verified all 10 number words produce correct output: "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten".
 
-### 3. Correctness: Song() string
+### 3. Empty string handling
 
-- Calls `Verses(99, 0)` which are always valid inputs.
-- Ignores error (which will always be nil for these inputs). This is acceptable.
-- `TestEntireSong` verifies `Song() == Verses(99, 0)` — the implementation guarantees this identity. PASS.
+**PASS.** The guard `if s == "" { return s }` prevents a panic from `s[:1]` on empty input. While `capitalize` is never called with an empty string in practice (the default case only fires for n >= 3, where `numberToWord[n]` is always populated), this is still good defensive coding.
 
-### 4. Edge Cases
+### 4. Imports clean?
 
-| Edge Case | Handled? | Notes |
-|-----------|----------|-------|
-| Verse(-1) | Yes | `0 > n` evaluates to true, returns error |
-| Verse(100) | Yes | `n > 99` evaluates to true, returns error |
-| Verse(0) | Yes | Explicit case in switch |
-| Verse(99) | Yes | Falls through to default, Sprintf produces "99 bottles...98 bottles..." |
-| Verses(5, 5) | Yes | Loop runs once (i=5, 5>=5), returns single verse with trailing newline |
-| Verses(0, 0) | Yes | Returns verse 0 correctly |
-| Verses(99, 0) | Yes | Full song, all 100 verses |
-| start == stop | Yes | Not explicitly tested but loop handles correctly |
+**PASS.** Two imports remain:
+- `"fmt"` -- used by `fmt.Sprintf` in `verse()`
+- `"strings"` -- used by `strings.ToUpper` in `capitalize()`
 
-### 5. Error Handling
+Both are necessary. No unused imports.
 
-- `Verse()`: Returns `fmt.Errorf` with descriptive message for out-of-range input. Tests only check `err != nil`, so error message format is fine.
-- `Verses()`: Three separate error conditions checked via switch:
-  1. Start out of range [0, 99]
-  2. Stop out of range [0, 99]
-  3. Start < stop
-- `Song()`: No error return needed per spec (`Song() string`). Always calls with valid args.
+### 5. Adherence to the plan
 
-All error paths return empty string + non-nil error. PASS.
+**PASS.** The implementation follows the plan exactly:
+1. Added `capitalize` helper function (matches plan's code block exactly)
+2. Replaced `strings.Title(numberToWord[n])` with `capitalize(numberToWord[n])` in the default case
+3. Kept necessary imports
 
-### 6. Adherence to Plan and Acceptance Criteria
+### 6. Control flow / edge case analysis
 
-| Criterion | Met? |
-|-----------|------|
-| `Verse(n int) (string, error)` function exists | Yes |
-| `Verses(start, stop int) (string, error)` function exists | Yes |
-| `Song() string` function exists | Yes |
-| Package name: `beer` | Yes |
-| Module: `beer` with `go 1.18` | Yes |
-| No external dependencies | Yes (only `bytes`, `fmt` from stdlib) |
-| All tests pass | Yes (verified by implementer) |
-| Feature branch `issue-15` | Yes (current branch) |
+**PASS.** Traced all paths through `verse()`:
+- `n == 1`: hardcoded strings, no `capitalize` call. Correct output verified against test cases.
+- `n == 2`: hardcoded strings, no `capitalize` call. Correct output verified against test cases.
+- `n >= 3` (default): uses `capitalize(numberToWord[n])` for the first two lines and `numberToWord[n-1]` (no capitalize) for the last line. This matches expected test output (e.g., "Ten green bottles" with capital T, "nine green bottles" lowercase for the "There'll be..." line).
 
-### 7. Code Quality
+### 7. No regressions introduced
 
-**Positives:**
-- Clean, idiomatic Go code
-- Uses `bytes.Buffer` for efficient string concatenation in `Verses()`
-- Proper godoc comments on all exported functions
-- Clear switch/case structure in `Verse()` for special cases
-- Descriptive error messages
-
-**Minor observations (not blocking):**
-- `Song()` uses named return `(result string)` with assignment `result, _ = Verses(99, 0)`. A more conventional form would be `result, _ := Verses(99, 0); return result` with an unnamed return. This is purely stylistic and has zero functional impact.
-- `result := ""` initialization in `Verse()` is technically redundant since all switch branches assign to it, but it makes the code clearer. Acceptable.
-
-### 8. Security / Robustness
-
-- No user input parsing beyond integer arguments
-- No file I/O, network access, or external dependencies
-- No injection vectors
-- All integer bounds properly validated
-
----
+**PASS.** The `Recite` function and `verse` function structure are unchanged. Only the internal implementation of how capitalization is done was modified. The public API remains identical.
 
 ## Summary
 
-The beer-song implementation is **correct, complete, and well-structured**. It passes all test cases, handles all edge cases (including untested ones), meets all acceptance criteria, and follows Go conventions. **No changes needed.**
+No issues found. The change is minimal, correct, and follows the plan precisely. Ready for testing.

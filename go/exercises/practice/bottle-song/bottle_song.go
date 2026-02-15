@@ -18,6 +18,13 @@ var numberToWord = map[int]string{
 	10: "ten",
 }
 
+func capitalize(s string) string {
+	if s == "" {
+		return s
+	}
+	return strings.ToUpper(s[:1]) + s[1:]
+}
+
 func verse(n int) []string {
 	switch {
 	case n == 1:
@@ -36,8 +43,8 @@ func verse(n int) []string {
 		}
 	default:
 		return []string{
-			fmt.Sprintf("%s green bottles hanging on the wall,", strings.Title(numberToWord[n])),
-			fmt.Sprintf("%s green bottles hanging on the wall,", strings.Title(numberToWord[n])),
+			fmt.Sprintf("%s green bottles hanging on the wall,", capitalize(numberToWord[n])),
+			fmt.Sprintf("%s green bottles hanging on the wall,", capitalize(numberToWord[n])),
 			"And if one green bottle should accidentally fall,",
 			fmt.Sprintf("There'll be %s green bottles hanging on the wall.", numberToWord[n-1]),
 		}
