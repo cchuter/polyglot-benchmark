@@ -1,0 +1,32 @@
+{
+  "issue_number": 40,
+  "outcome": "success",
+  "failure_mode": null,
+  "iterations_used": 1,
+  "plan_review_verdict": "unknown",
+  "codex_review_verdict": "pass",
+  "verification_verdict": "fail",
+  "files_changed": [
+    ".osmi/GOAL.md",
+    ".osmi/SCOPE.md",
+    ".osmi/agents/challenger/review.md",
+    ".osmi/agents/executor/test-results.md",
+    ".osmi/agents/implementer/changes.md",
+    ".osmi/agents/verifier/report.md",
+    ".osmi/goal.json",
+    ".osmi/iterations/001.md",
+    ".osmi/plan-review.md",
+    ".osmi/plan.md",
+    ".osmi/status.json"
+  ],
+  "phases_reached": [
+    "pending",
+    "goal",
+    "designing",
+    "implementing",
+    "done"
+  ],
+  "planning_mode": "linear",
+  "topology": "default",
+  "timestamp": "2026-02-15T18:07:30Z"
+}
