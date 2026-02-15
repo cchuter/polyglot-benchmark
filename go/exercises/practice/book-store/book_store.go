@@ -1,73 +1,55 @@
 package bookstore
 
-var groupCosts = [6]int{
-	0,
-	1 * 800,
-	2 * 800 * 95 / 100,
-	3 * 800 * 90 / 100,
-	4 * 800 * 80 / 100,
-	5 * 800 * 75 / 100,
-}
+import (
+	"math"
+	"sort"
+)
+
+var discounts = [6]int{0, 0, 5, 10, 20, 25}
 
 func Cost(books []int) int {
-	freq := make(map[int]int)
+	var freq [5]int
 	for _, b := range books {
-		freq[b]++
+		freq[b-1]++
+	}
+	sort.Sort(sort.Reverse(sort.IntSlice(freq[:])))
+	memo := make(map[[5]int]int)
+	return minCost(freq, memo)
+}
+
+func minCost(freq [5]int, memo map[[5]int]int) int {
+	if freq[0] == 0 {
+		return 0
+	}
+	if v, ok := memo[freq]; ok {
+		return v
 	}
 
-	counts := make([]int, 0, len(freq))
-	for _, c := range freq {
-		counts = append(counts, c)
+	distinct := 0
+	for _, f := range freq {
+		if f > 0 {
+			distinct++
+		}
 	}
 
-	var groups []int
-	for {
-		size := 0
-		for i := range counts {
-			if counts[i] > 0 {
-				counts[i]--
-				size++
-			}
+	best := math.MaxInt32
+	for gs := 1; gs <= distinct; gs++ {
+		var nf [5]int
+		copy(nf[:], freq[:])
+		for i := 0; i < gs; i++ {
+			nf[i]--
 		}
-		if size == 0 {
-			break
+		sort.Sort(sort.Reverse(sort.IntSlice(nf[:])))
+		candidate := groupCost(gs) + minCost(nf, memo)
+		if candidate < best {
+			best = candidate
 		}
-		groups = append(groups, size)
 	}
 
-	fives, threes := 0, 0
-	for _, g := range groups {
-		if g == 5 {
-			fives++
-		}
-		if g == 3 {
-			threes++
-		}
-	}
-	swaps := fives
-	if threes < swaps {
-		swaps = threes
-	}
-	if swaps > 0 {
-		newGroups := make([]int, 0, len(groups))
-		fivesLeft, threesLeft := swaps, swaps
-		for _, g := range groups {
-			if g == 5 && fivesLeft > 0 {
-				newGroups = append(newGroups, 4)
-				fivesLeft--
-			} else if g == 3 && threesLeft > 0 {
-				newGroups = append(newGroups, 4)
-				threesLeft--
-			} else {
-				newGroups = append(newGroups, g)
-			}
-		}
-		groups = newGroups
-	}
+	memo[freq] = best
+	return best
+}
 
-	total := 0
-	for _, g := range groups {
-		total += groupCosts[g]
-	}
-	return total
+func groupCost(n int) int {
+	return n * 800 * (100 - discounts[n]) / 100
 }
