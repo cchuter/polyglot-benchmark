@@ -1,14 +1,15 @@
-# Changes: Replace deprecated strings.Title in bottle-song
+# Implementer Change Log
 
-## File Modified
-- `go/exercises/practice/bottle-song/bottle_song.go`
+## 2026-02-15: Implement Cost function for book-store exercise
 
-## What Changed
-1. **Added `capitalize` helper function** (lines 21-26): A simple function that uppercases the first letter of a string using `strings.ToUpper(s[:1]) + s[1:]`, replacing the deprecated `strings.Title()`.
-2. **Replaced two `strings.Title()` calls** (lines 46-47): Both occurrences of `strings.Title(numberToWord[n])` in the `default` case of `verse()` were changed to `capitalize(numberToWord[n])`.
+**File changed:** `go/exercises/practice/book-store/book_store.go`
 
-## Why
-`strings.Title` is deprecated in Go since 1.18 because its word boundary rules do not handle Unicode punctuation properly. The `capitalize` helper is sufficient here since we only need to capitalize the first letter of single-word number strings ("one", "two", etc.).
+**Summary:** Implemented the `Cost` function using a frequency-based recursive search with memoization to find the minimum cost for a basket of books.
 
-## Imports
-No import changes needed -- `strings` is still required for `strings.ToUpper` in the new helper, and `fmt` is still used for `Sprintf`.
+**Details:**
+- `Cost(books []int) int` — entry point; builds a frequency array from book IDs (1-5), sorts descending for canonical state, and delegates to `minCost`.
+- `minCost(freq [5]int, memo map[[5]int]int) int` — recursively tries all group sizes from 1 to the number of distinct books remaining, memoizing on the sorted frequency array to avoid redundant computation.
+- `groupCost(n int) int` — calculates the discounted price (in cents) for a group of `n` distinct books using the discount table: 0% for 1, 5% for 2, 10% for 3, 20% for 4, 25% for 5.
+- Discount table stored as `var discounts = [6]int{0, 0, 5, 10, 20, 25}`.
+
+**Build verification:** `go build ./...` passed with no errors.
