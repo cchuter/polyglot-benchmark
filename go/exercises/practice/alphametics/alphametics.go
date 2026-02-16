@@ -6,114 +6,156 @@ import (
 	"strings"
 )
 
-// Solve finds digit assignments for an alphametics puzzle such that
-// the arithmetic equation holds, each letter maps to a unique digit,
-// and no multi-digit number has a leading zero.
 func Solve(puzzle string) (map[string]int, error) {
-	// Parse: split on whitespace, discard "+" and "=="
-	tokens := strings.Fields(puzzle)
-	var words []string
-	for _, t := range tokens {
-		if t != "+" && t != "==" {
-			words = append(words, t)
-		}
+	// Step 1: Parse the puzzle
+	sides := strings.SplitN(puzzle, "==", 2)
+	if len(sides) != 2 {
+		return nil, errors.New("invalid puzzle format")
 	}
-	if len(words) < 2 {
-		return nil, errors.New("invalid puzzle")
+	lhs := strings.TrimSpace(sides[0])
+	rhs := strings.TrimSpace(sides[1])
+
+	addends := strings.Split(lhs, "+")
+	for i := range addends {
+		addends[i] = strings.TrimSpace(addends[i])
+	}
+	result := strings.TrimSpace(rhs)
+
+	allWords := append(addends, result)
+
+	// Step 2: Extract unique letters and identify leading letters
+	seen := make(map[byte]bool)
+	var letters []byte
+	for _, word := range allWords {
+		for i := 0; i < len(word); i++ {
+			if !seen[word[i]] {
+				seen[word[i]] = true
+				letters = append(letters, word[i])
+			}
+		}
 	}
 
-	// Compute letter coefficients.
-	// Addends (all words except last) contribute positively,
-	// result word (last) contributes negatively.
-	// A correct assignment makes the total sum zero.
-	coeffMap := make(map[byte]int)
 	leading := make(map[byte]bool)
-	for i, word := range words {
-		sign := 1
-		if i == len(words)-1 {
-			sign = -1
-		}
-		place := 1
-		for j := len(word) - 1; j >= 0; j-- {
-			coeffMap[word[j]] += sign * place
-			place *= 10
-		}
+	for _, word := range allWords {
 		if len(word) > 1 {
 			leading[word[0]] = true
 		}
 	}
 
-	// Sort letters by |coefficient| descending for better pruning
-	letters := make([]byte, 0, len(coeffMap))
-	for ch := range coeffMap {
-		letters = append(letters, ch)
+	n := len(letters)
+
+	// Step 3: Compute letter weights
+	weights := make(map[byte]int)
+	for _, word := range addends {
+		place := 1
+		for i := len(word) - 1; i >= 0; i-- {
+			weights[word[i]] += place
+			place *= 10
+		}
 	}
+	{
+		place := 1
+		for i := len(result) - 1; i >= 0; i-- {
+			weights[result[i]] -= place
+			place *= 10
+		}
+	}
+
+	// Step 4: Sort letters by descending absolute weight
 	sort.Slice(letters, func(i, j int) bool {
-		ai := coeffMap[letters[i]]
+		ai := weights[letters[i]]
 		if ai < 0 {
 			ai = -ai
 		}
-		aj := coeffMap[letters[j]]
+		aj := weights[letters[j]]
 		if aj < 0 {
 			aj = -aj
 		}
 		return ai > aj
 	})
 
-	n := len(letters)
-	coeff := make([]int, n)
+	// Build indexed arrays for fast access in recursion
+	w := make([]int, n)
 	isLeading := make([]bool, n)
 	for i, ch := range letters {
-		coeff[i] = coeffMap[ch]
+		w[i] = weights[ch]
 		isLeading[i] = leading[ch]
 	}
 
-	// Backtracking solver with bounds pruning
+	// Step 5: Recursive backtracking with pruning
 	assignment := make([]int, n)
+	var solve func(idx int, partialSum int, usedMask int) bool
 
-	var solve func(idx, sum, used int) bool
-	solve = func(idx, sum, used int) bool {
+	solve = func(idx int, partialSum int, usedMask int) bool {
 		if idx == n {
-			return sum == 0
+			return partialSum == 0
 		}
+
 		for d := 0; d <= 9; d++ {
-			if used&(1<<d) != 0 {
+			if usedMask&(1<<d) != 0 {
 				continue
 			}
 			if d == 0 && isLeading[idx] {
 				continue
 			}
-			newSum := sum + coeff[idx]*d
-			newUsed := used | (1 << d)
 
-			// Bounds pruning: check if remaining letters can bring sum to 0
-			if idx < n-1 {
-				lo, hi := 0, 0
-				feasible := true
-				for k := idx + 1; k < n; k++ {
-					minD, maxD := availMinMax(newUsed, isLeading[k])
-					if minD < 0 {
-						feasible = false
-						break
-					}
-					c := coeff[k]
-					if c > 0 {
-						lo += c * minD
-						hi += c * maxD
+			newSum := partialSum + w[idx]*d
+			newMask := usedMask | (1 << d)
+
+			// Compute loose bounds for remaining letters
+			if idx+1 < n {
+				minBound := 0
+				maxBound := 0
+				for j := idx + 1; j < n; j++ {
+					wj := w[j]
+					// Find min and max available digits for this letter
+					var lo, hi int
+					if isLeading[j] {
+						// Leading letter: smallest available non-zero digit
+						lo = -1
+						for dd := 1; dd <= 9; dd++ {
+							if newMask&(1<<dd) == 0 {
+								if lo == -1 {
+									lo = dd
+								}
+								hi = dd
+							}
+						}
 					} else {
-						lo += c * maxD
-						hi += c * minD
+						lo = -1
+						for dd := 0; dd <= 9; dd++ {
+							if newMask&(1<<dd) == 0 {
+								if lo == -1 {
+									lo = dd
+								}
+								hi = dd
+							}
+						}
+					}
+					if lo == -1 {
+						// No available digit — this path is impossible
+						goto nextDigit
+					}
+					if wj > 0 {
+						minBound += wj * lo
+						maxBound += wj * hi
+					} else {
+						minBound += wj * hi
+						maxBound += wj * lo
 					}
 				}
-				if !feasible || newSum+lo > 0 || newSum+hi < 0 {
-					continue
+				// Check if zero is achievable
+				if newSum+minBound > 0 || newSum+maxBound < 0 {
+					goto nextDigit
 				}
 			}
 
 			assignment[idx] = d
-			if solve(idx+1, newSum, newUsed) {
+			if solve(idx+1, newSum, newMask) {
 				return true
 			}
+
+		nextDigit:
 		}
 		return false
 	}
@@ -122,34 +164,10 @@ func Solve(puzzle string) (map[string]int, error) {
 		return nil, errors.New("no solution found")
 	}
 
-	result := make(map[string]int, n)
+	// Step 6: Build result map
+	result2 := make(map[string]int, n)
 	for i, ch := range letters {
-		result[string(ch)] = assignment[i]
+		result2[string(ch)] = assignment[i]
 	}
-	return result, nil
-}
-
-// availMinMax returns the smallest and largest available digits given a
-// used-digit bitmask. If isLeading is true, digit 0 is excluded.
-// Returns (-1, -1) if no digit is available.
-func availMinMax(used int, isLeading bool) (int, int) {
-	start := 0
-	if isLeading {
-		start = 1
-	}
-	minD := -1
-	for d := start; d <= 9; d++ {
-		if used&(1<<d) == 0 {
-			minD = d
-			break
-		}
-	}
-	maxD := -1
-	for d := 9; d >= start; d-- {
-		if used&(1<<d) == 0 {
-			maxD = d
-			break
-		}
-	}
-	return minD, maxD
+	return result2, nil
 }
