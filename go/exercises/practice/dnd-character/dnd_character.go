@@ -3,10 +3,9 @@ package dndcharacter
 import (
 	"math"
 	"math/rand"
-	"sort"
 )
 
-// Character represents a D&D character with ability scores and hitpoints.
+// Character represents a D&D character with six ability scores and hitpoints.
 type Character struct {
 	Strength     int
 	Dexterity    int
@@ -23,13 +22,18 @@ func Modifier(score int) int {
 }
 
 // Ability uses randomness to generate the score for an ability.
+// It rolls four 6-sided dice and returns the sum of the three highest.
 func Ability() int {
-	rolls := make([]int, 4)
-	for i := range rolls {
-		rolls[i] = rand.Intn(6) + 1
+	sum := 0
+	min := 7
+	for i := 0; i < 4; i++ {
+		roll := rand.Intn(6) + 1
+		sum += roll
+		if roll < min {
+			min = roll
+		}
 	}
-	sort.Ints(rolls)
-	return rolls[1] + rolls[2] + rolls[3]
+	return sum - min
 }
 
 // GenerateCharacter creates a new Character with random scores for abilities.
