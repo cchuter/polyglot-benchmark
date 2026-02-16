@@ -2,71 +2,45 @@ package bookstore
 
 import "sort"
 
-var groupCost = [...]int{0, 800, 1520, 2160, 2560, 3000}
+// groupCost maps group size to its discounted price in cents.
+var groupCost = [6]int{0, 800, 1520, 2160, 2560, 3000}
 
+// Cost calculates the cheapest price for a basket of books.
 func Cost(books []int) int {
-	// Count frequency of each book
-	freq := make(map[int]int)
+	// Count frequency of each book (numbered 1-5).
+	freq := make([]int, 5)
 	for _, b := range books {
-		freq[b]++
+		freq[b-1]++
 	}
 
-	// Extract frequencies and sort descending
-	counts := make([]int, 0, len(freq))
-	for _, c := range freq {
-		counts = append(counts, c)
-	}
-	sort.Sort(sort.Reverse(sort.IntSlice(counts)))
+	// Sort frequencies descending.
+	sort.Sort(sort.Reverse(sort.IntSlice(freq)))
 
-	// Build groups by peeling layers
-	var groups []int
-	for len(counts) > 0 {
-		groups = append(groups, len(counts))
-		// Decrease each frequency by 1, remove zeros
-		j := 0
-		for _, c := range counts {
-			if c > 1 {
-				counts[j] = c - 1
-				j++
-			}
+	// Layer-peel: determine number of groups of each size.
+	// With sorted desc frequencies, groups of size k are formed by
+	// the difference between adjacent frequency levels.
+	var groups [6]int
+	for size := 1; size <= 5; size++ {
+		next := 0
+		if size <= 4 {
+			next = freq[size]
 		}
-		counts = counts[:j]
+		groups[size] = freq[size-1] - next
 	}
 
-	// Optimize: convert 5+3 pairs into 4+4 pairs
-	n5, n3 := 0, 0
-	for _, g := range groups {
-		if g == 5 {
-			n5++
-		} else if g == 3 {
-			n3++
-		}
+	// Adjustment: two groups of 4 (5120) are cheaper than a 5+3 pair (5160).
+	pairs := groups[5]
+	if groups[3] < pairs {
+		pairs = groups[3]
 	}
-	swaps := n5
-	if n3 < swaps {
-		swaps = n3
-	}
-	if swaps > 0 {
-		optimized := make([]int, 0, len(groups)+swaps)
-		s5, s3 := swaps, swaps
-		for _, g := range groups {
-			if g == 5 && s5 > 0 {
-				optimized = append(optimized, 4)
-				s5--
-			} else if g == 3 && s3 > 0 {
-				optimized = append(optimized, 4)
-				s3--
-			} else {
-				optimized = append(optimized, g)
-			}
-		}
-		groups = optimized
-	}
+	groups[5] -= pairs
+	groups[3] -= pairs
+	groups[4] += 2 * pairs
 
-	// Sum costs
+	// Sum up the total cost.
 	total := 0
-	for _, g := range groups {
-		total += groupCost[g]
+	for size := 1; size <= 5; size++ {
+		total += groups[size] * groupCost[size]
 	}
 	return total
 }
