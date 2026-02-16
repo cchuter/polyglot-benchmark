@@ -2,47 +2,65 @@ package bookstore
 
 import "sort"
 
-const bookPrice = 800
-
-var discounts = [6]int{0, 0, 5, 10, 20, 25}
-
+// Cost calculates the total cost in cents for a basket of books,
+// applying the best possible group discounts.
 func Cost(books []int) int {
+	// Count frequency of each book
 	freq := make(map[int]int)
 	for _, b := range books {
 		freq[b]++
 	}
+
+	// Extract counts and sort descending
 	counts := make([]int, 0, len(freq))
-	for _, v := range freq {
-		counts = append(counts, v)
+	for _, c := range freq {
+		counts = append(counts, c)
 	}
 	sort.Sort(sort.Reverse(sort.IntSlice(counts)))
-	return minCost(counts)
+
+	// Build groups greedily
+	var groups []int
+	for {
+		size := 0
+		for i := range counts {
+			if counts[i] > 0 {
+				counts[i]--
+				size++
+			}
+		}
+		if size == 0 {
+			break
+		}
+		groups = append(groups, size)
+	}
+
+	// Count groups of 5 and 3; redistribute to 4+4
+	fives, threes := 0, 0
+	for _, g := range groups {
+		if g == 5 {
+			fives++
+		}
+		if g == 3 {
+			threes++
+		}
+	}
+	redistribute := min(fives, threes)
+
+	// Calculate cost using group cost table
+	groupCost := [6]int{0, 800, 1520, 2160, 2560, 3000}
+	total := 0
+	for _, g := range groups {
+		total += groupCost[g]
+	}
+	// Apply redistribution: each 5+3 → 4+4 saves 40 cents
+	total -= redistribute * 40
+
+	return total
 }
 
-func minCost(counts []int) int {
-	for len(counts) > 0 && counts[len(counts)-1] == 0 {
-		counts = counts[:len(counts)-1]
+func min(a, b int) int {
+	if a < b {
+		return a
 	}
-	if len(counts) == 0 {
-		return 0
-	}
-
-	best := int(^uint(0) >> 1)
-	for groupSize := 1; groupSize <= len(counts); groupSize++ {
-		next := make([]int, len(counts))
-		copy(next, counts)
-		for i := 0; i < groupSize; i++ {
-			next[i]--
-		}
-		sort.Sort(sort.Reverse(sort.IntSlice(next)))
-		cost := groupCost(groupSize) + minCost(next)
-		if cost < best {
-			best = cost
-		}
-	}
-	return best
-}
-
-func groupCost(size int) int {
-	return bookPrice * size * (100 - discounts[size]) / 100
+	return b
 }
