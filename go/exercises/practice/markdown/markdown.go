@@ -20,7 +20,7 @@ func Render(markdown string) string {
 			continue
 		} else if len(itemList) != 0 {
 			html.WriteString(fmt.Sprintf("<ul>%s</ul>", strings.Join(itemList, "")))
-			itemList = nil
+			itemList = []string{}
 		}
 		if line[0] == headingMarker {
 			level := headingLevel(line)
@@ -39,7 +39,8 @@ func Render(markdown string) string {
 	return html.String()
 }
 
-// headingLevel returns the heading level (1-6) or -1 if the line has 7+ '#' characters.
+// headingLevel counts leading '#' characters and returns the heading level (1-6).
+// Returns -1 if there are more than 6 '#' characters (not a valid heading).
 func headingLevel(line string) int {
 	for i := 0; i <= 6; i++ {
 		if line[i] != headingMarker {
@@ -49,8 +50,8 @@ func headingLevel(line string) int {
 	return -1
 }
 
-// renderInline converts bold (__) and italic (_) markers to HTML tags.
-// Bold must be processed before italic so that __ is not consumed as two separate _.
+// renderInline converts markdown inline formatting to HTML.
+// Handles bold (__text__) and italic (_text_) markers.
 func renderInline(text string) string {
 	result := text
 	for strings.Contains(result, "__") {
