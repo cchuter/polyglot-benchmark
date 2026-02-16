@@ -3,40 +3,31 @@ package cryptosquare
 import (
 	"math"
 	"strings"
-	"unicode"
 )
 
+func norm(r rune) rune {
+	switch {
+	case r >= 'a' && r <= 'z' || r >= '0' && r <= '9':
+		return r
+	case r >= 'A' && r <= 'Z':
+		return r + 'a' - 'A'
+	}
+	return -1
+}
+
 func Encode(pt string) string {
-	// Step 1: Normalize - keep only alphanumeric, lowercase
-	var norm []byte
-	for _, ch := range pt {
-		if unicode.IsLetter(ch) || unicode.IsDigit(ch) {
-			norm = append(norm, byte(unicode.ToLower(ch)))
-		}
+	pt = strings.Map(norm, pt)
+	numCols := int(math.Ceil(math.Sqrt(float64(len(pt)))))
+	padding := numCols*(numCols-1) - len(pt)
+	if padding < 0 {
+		padding = numCols*numCols - len(pt)
 	}
-	n := len(norm)
-	if n == 0 {
-		return ""
+	cols := make([]string, numCols)
+	for i, r := range pt {
+		cols[i%numCols] += string(r)
 	}
-
-	// Step 2: Compute rectangle dimensions
-	c := int(math.Ceil(math.Sqrt(float64(n))))
-	r := int(math.Ceil(float64(n) / float64(c)))
-
-	// Step 3: Read columns and build output
-	var b strings.Builder
-	for col := 0; col < c; col++ {
-		if col > 0 {
-			b.WriteByte(' ')
-		}
-		for row := 0; row < r; row++ {
-			idx := row*c + col
-			if idx < n {
-				b.WriteByte(norm[idx])
-			} else {
-				b.WriteByte(' ')
-			}
-		}
+	for i := 0; i < padding; i++ {
+		cols[numCols-i-1] += " "
 	}
-	return b.String()
+	return strings.Join(cols, " ")
 }
