@@ -1,6 +1,8 @@
 package octal
 
-import "fmt"
+import (
+	"fmt"
+)
 
 func ParseOctal(octal string) (int64, error) {
 	num := int64(0)
