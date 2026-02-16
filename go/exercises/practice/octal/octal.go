@@ -1,16 +1,14 @@
 package octal
 
-import (
-	"fmt"
-)
+import "fmt"
 
-func ParseOctal(octal string) (int64, error) {
+func ParseOctal(input string) (int64, error) {
 	num := int64(0)
-	for _, digit := range octal {
-		if digit < '0' || digit > '7' {
-			return 0, fmt.Errorf("unexpected rune '%c'", digit)
+	for _, ch := range input {
+		if ch < '0' || ch > '7' {
+			return 0, fmt.Errorf("invalid octal digit: %c", ch)
 		}
-		num = num<<3 + int64(digit-'0')
+		num = num*8 + int64(ch-'0')
 	}
 	return num, nil
 }
