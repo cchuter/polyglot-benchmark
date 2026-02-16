@@ -1,92 +1,60 @@
-# Implementation Plan: DnD Character Generator
+# Implementation Plan: Dominoes Chain Solver
 
-## Overview
+## File to Modify
 
-Implement the D&D character generator in a single file: `go/exercises/practice/dnd-character/dnd_character.go`.
+- `go/exercises/practice/dominoes/dominoes.go` — the only file that needs changes
 
-## Files to Modify
+## Algorithm: Eulerian Circuit via Backtracking DFS
 
-- `go/exercises/practice/dnd-character/dnd_character.go` — the only file to change
+The domino chaining problem is equivalent to finding an Eulerian circuit in a multigraph where:
+- Each unique number is a vertex
+- Each domino `[a, b]` is an edge between vertices `a` and `b`
 
-## Implementation Details
+### Approach
 
-### 1. Character Struct
+Use a two-phase approach:
+
+**Phase 1: Validity checks (fast rejection)**
+1. Empty input → return `([]Domino{}, true)` immediately
+2. Check all vertices have even degree (necessary condition for Eulerian circuit)
+3. Check graph connectivity using Union-Find or BFS/DFS (necessary because disconnected graphs with even degrees can't form a single chain)
+
+**Phase 2: Construct the chain via backtracking DFS**
+- Use recursive backtracking with a `used` boolean slice to track which dominoes have been placed
+- Start with the first domino (try both orientations)
+- At each step, try to extend the chain by finding an unused domino whose left value matches the current chain's right end
+- When all dominoes are placed, verify the chain is circular (first left == last right)
+
+### Detailed Design
 
 ```go
-type Character struct {
-    Strength     int
-    Dexterity    int
-    Constitution int
-    Intelligence int
-    Wisdom       int
-    Charisma     int
-    Hitpoints    int
+type Domino [2]int
+
+func MakeChain(input []Domino) (chain []Domino, ok bool) {
+    // Handle empty case
+    // Check necessary conditions (even degree, connectivity)
+    // Backtrack to find a valid chain
 }
 ```
 
-Fields match what the tests expect (exported fields accessed as `character.Strength`, etc.).
+#### Connectivity Check
+Use a simple Union-Find (disjoint set) to verify all domino values are in the same connected component. This is simpler than BFS for this use case.
 
-### 2. Modifier Function
+#### Backtracking
+- `used []bool` tracks which input dominoes are already placed
+- `chain []Domino` accumulates the current chain
+- Try each unused domino that can connect (matching left side to current right end), in both orientations
+- Base case: all dominoes placed, check circularity
 
-```go
-func Modifier(score int) int {
-    return int(math.Floor(float64(score-10) / 2.0))
-}
-```
+### Why Backtracking Over Hierholzer's
 
-Uses `math.Floor` for correct rounding toward negative infinity (important for odd scores below 10, e.g. score=3 → -4, not -3).
+Hierholzer's algorithm finds Eulerian circuits in O(E) time, but it works on the multigraph of edges, not on the original domino sequence. Converting back to a domino sequence with correct orientations adds complexity. For the small input sizes in the test cases (max 9 dominoes), backtracking is simple, correct, and fast enough.
 
-### 3. Ability Function
+## Implementation Order
 
-Roll 4 six-sided dice, drop the lowest, sum the top 3:
-
-```go
-func Ability() int {
-    rolls := make([]int, 4)
-    sum := 0
-    min := 7
-    for i := 0; i < 4; i++ {
-        rolls[i] = rand.Intn(6) + 1
-        sum += rolls[i]
-        if rolls[i] < min {
-            min = rolls[i]
-        }
-    }
-    return sum - min
-}
-```
-
-Using a manual min instead of `slices.Min` to avoid compatibility issues with `go 1.18` in the module file. This is simpler and has no import dependency.
-
-### 4. GenerateCharacter Function
-
-```go
-func GenerateCharacter() Character {
-    c := Character{
-        Strength:     Ability(),
-        Dexterity:    Ability(),
-        Constitution: Ability(),
-        Intelligence: Ability(),
-        Wisdom:       Ability(),
-        Charisma:     Ability(),
-    }
-    c.Hitpoints = 10 + Modifier(c.Constitution)
-    return c
-}
-```
-
-### 5. Imports
-
-Only need `math` and `math/rand`.
-
-## Approach and Ordering
-
-1. Write the complete solution in `dnd_character.go`
-2. Run `go test ./...` in the exercise directory to verify all tests pass
-3. Run `go vet ./...` to check for issues
-4. Commit the change
-
-## Architectural Decisions
-
-- **Manual min instead of `slices.Min`**: The `go.mod` specifies `go 1.18` but `slices` is a Go 1.21 package. While the runtime supports it, keeping compatibility with the declared module version is safer. Tracking min during iteration is O(1) space and simpler.
-- **`math.Floor` for modifier**: Integer division in Go truncates toward zero, which gives wrong results for negative values. `math.Floor` correctly rounds toward negative infinity.
+1. Define the `Domino` type
+2. Implement `MakeChain` with edge cases (empty, single)
+3. Implement connectivity check via Union-Find
+4. Implement even-degree check
+5. Implement backtracking DFS to construct the chain
+6. Run tests and verify

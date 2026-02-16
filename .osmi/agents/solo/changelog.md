@@ -1,15 +1,23 @@
 # Solo Agent Change Log
 
-## Change 1: Implement dnd-character solution
+## Change 1: Implement MakeChain in dominoes.go
 
-**File modified:** `go/exercises/practice/dnd-character/dnd_character.go`
+**File**: `go/exercises/practice/dominoes/dominoes.go`
+**Type**: New implementation (was empty stub)
 
-**Changes:**
-- Added `Character` struct with 7 fields: Strength, Dexterity, Constitution, Intelligence, Wisdom, Charisma, Hitpoints
-- Added `Modifier(score int) int` — computes ability modifier using `math.Floor((score-10)/2)`
-- Added `Ability() int` — rolls 4d6, drops lowest, sums top 3 using manual min tracking
-- Added `GenerateCharacter() Character` — generates all 6 abilities randomly, computes hitpoints
+### What changed
+- Defined `Domino` type as `[2]int`
+- Implemented `MakeChain` function with two-phase approach:
+  1. **Validation phase**: Even-degree check + Union-Find connectivity check for fast rejection of impossible inputs
+  2. **Construction phase**: Backtracking DFS to find valid chain arrangement
+- Helper functions: `solve`, `hasEvenDegrees`, `isConnected`
 
-**Test results:** All 3 test suites pass (TestModifier: 16/16, TestAbility: 1/1, TestGenerateCharacter: 1/1). `go vet` clean.
+### Key decisions
+- Used Union-Find with path compression for connectivity check (handles self-loops correctly)
+- Backtracking over Hierholzer's algorithm — simpler for small input sizes (max 9 in tests)
+- `solve` returns `[]Domino` directly to avoid slice aliasing issues with append
 
-**Decision:** Used manual min tracking instead of `slices.Min` to stay compatible with `go 1.18` module declaration.
+### Test results
+- All 12 test cases pass
+- `go vet` clean
+- Commit: 208b3fa

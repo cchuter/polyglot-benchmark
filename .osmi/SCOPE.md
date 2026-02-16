@@ -1,24 +1,21 @@
-# Scope: DnD Character Generator
+# Scope: Dominoes Chain Solver (Issue #164)
 
 ## In Scope
 
-- Implement `Character` struct in `dnd_character.go`
-- Implement `Modifier(score int) int` function
-- Implement `Ability() int` function (roll 4d6, drop lowest, sum top 3)
-- Implement `GenerateCharacter() Character` function
-- Ensure all existing tests pass
+- Implement `Domino` type and `MakeChain` function in `go/exercises/practice/dominoes/dominoes.go`
+- The implementation must pass all existing test cases in `dominoes_test.go` and `cases_test.go`
+- Solution must handle: empty input, single dominos, multi-element chains, disconnected graphs, backtracking
 
 ## Out of Scope
 
-- Modifying test files (`dnd_character_test.go`, `cases_test.go`)
+- Modifying test files (`dominoes_test.go`, `cases_test.go`)
 - Modifying `go.mod`
 - Adding new test cases
-- Adding CLI or main package
-- Any other exercises in the repository
+- Performance optimization beyond what's needed to pass the benchmark
+- Changes to any other exercise or non-dominoes files
 
 ## Dependencies
 
-- `math` (for `math.Floor`)
-- `math/rand` (for dice rolling)
-- `slices` (for `slices.Min` — available in Go 1.21+, but the example uses it; alternatively use a manual min)
-- No external dependencies
+- Go 1.18+ (as specified in go.mod)
+- No external packages — standard library only
+- No dependencies on other exercises in the repository
