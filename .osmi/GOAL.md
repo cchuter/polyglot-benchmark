@@ -1,36 +1,38 @@
-# Goal: polyglot-go-connect
+# Goal: polyglot-go-counter
 
 ## Problem Statement
 
-Implement the `ResultOf` function in `go/exercises/practice/connect/connect.go` for the Hex/Polygon/CON-TAC-TIX board game. Given a board representation as a slice of strings, determine which player (if any) has won by connecting their stones to opposite sides.
+Design a test suite (`counter_test.go`) for a line/letter/character counter tool in Go. This is a special exercise where the solution is the test code itself, not production code. Four implementations (`impl1.go` through `impl4.go`) are provided; the test suite must pass on the correct implementation (`impl4`) and detect bugs in the incorrect ones (`impl1`, `impl2`, `impl3`).
 
-- Player "O" wins by connecting top to bottom
-- Player "X" wins by connecting left to right
-- The board is a parallelogram with hexagonal fields
-- Boards may not be "fair" (different dimensions, unequal piece counts)
+## Bugs in Each Implementation
+
+- **Impl1**: Counts lines incorrectly — only counts `\n` characters, missing that a non-empty string without a trailing newline still constitutes a line.
+- **Impl2**: Only counts ASCII letters (`A-Z`, `a-z`), missing Unicode letters. Uses `unicode.IsLetter` incorrectly — actually doesn't use it at all.
+- **Impl3**: Iterates by byte index (`for i := 0; i < len(s); i++`) instead of by rune (`for _, char := range s`), causing incorrect character/letter counts for multi-byte Unicode characters.
+- **Impl4**: Correct implementation — uses `range` for proper Unicode handling, counts lines correctly (newlines + 1 for non-empty non-newline-terminated content), and uses `unicode.IsLetter` for letter detection.
 
 ## Acceptance Criteria
 
-1. `ResultOf` accepts `[]string` (board rows with spaces stripped) and returns `(string, error)`
-2. Returns `"X"` when X has a connected path from left edge to right edge
-3. Returns `"O"` when O has a connected path from top edge to bottom edge
-4. Returns `""` when neither player has won
-5. All 10 test cases in `cases_test.go` pass, including:
-   - Empty board (no winner)
-   - 1x1 boards (single stone wins)
-   - Edge-only placement (no winner)
-   - Illegal diagonal (no winner)
-   - Adjacent angles (no winner)
-   - Left-to-right X win
-   - Top-to-bottom O win
-   - Convoluted path X win
-   - Spiral path X win
-6. `go test ./...` passes with no errors
-7. `go vet ./...` passes with no warnings
+1. `counter_test.go` contains a comprehensive test suite covering:
+   - No strings added (zero counts)
+   - Empty string (zero counts)
+   - Simple ASCII string without newline
+   - ASCII string with newline in the middle
+   - String ending with newline
+   - Unicode (non-ASCII) letters
+   - Multiple `AddString` calls (accumulation)
+   - Only newlines
+   - Mixed content (letters, digits, symbols, newlines)
+2. Tests pass with `COUNTER_IMPL=4`: `COUNTER_IMPL=4 go test ./...` succeeds
+3. Tests fail with `COUNTER_IMPL=1`: detects incorrect line counting
+4. Tests fail with `COUNTER_IMPL=2`: detects failure to count Unicode letters
+5. Tests fail with `COUNTER_IMPL=3`: detects incorrect byte-vs-rune counting
+6. `go vet ./...` passes with no issues
+7. Code compiles cleanly
 
 ## Key Constraints
 
-- Solution goes in `connect.go` in package `connect`
-- Must export function `ResultOf([]string) (string, error)`
-- Hexagonal adjacency: each cell has 6 neighbors: (x±1,y), (x,y±1), (x-1,y+1), (x+1,y-1)
-- Input strings have spaces already stripped by the test harness's `prepare` function
+- The solution file is `counter_test.go` (not `counter.go`)
+- Must use the `Counter` interface defined in `interface.go`
+- Must use the `makeCounter()` factory from `maker.go`
+- Tests run via environment variable `COUNTER_IMPL` to select implementation

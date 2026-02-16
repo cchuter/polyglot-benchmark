@@ -1,15 +1,25 @@
-# Change Log: polyglot-go-connect
+# Changelog: polyglot-go-counter
 
-## Changes Made
+## Changes
 
-### `go/exercises/practice/connect/connect.go`
-- Implemented `ResultOf([]string) (string, error)` function
-- Added board parsing (`newBoard`) that converts string input to a 2D int8 grid
-- Used bit flags (`white`, `black`, `connectedWhite`, `connectedBlack`) for efficient color and visited tracking
-- Implemented DFS flood-fill (`evaluate`) with hex adjacency (6 neighbors per cell)
-- Player X: starts from left edge (x=0), wins at right edge (x=width-1)
-- Player O: starts from top edge (y=0), wins at bottom edge (y=height-1)
+### counter_test.go
+- Replaced stub (`// Define your tests here`) with comprehensive test suite
+- Added `assertCounts` helper function for clean test assertions
+- Implemented 9 test functions covering:
+  - `TestNoAddString` — zero-value baseline
+  - `TestEmptyString` — empty input handling
+  - `TestSimpleASCIINoNewline` — basic ASCII, catches Impl1 line bug
+  - `TestASCIIWithNewlineInMiddle` — newline in middle, catches Impl1
+  - `TestStringEndingWithNewline` — trailing newline handling
+  - `TestUnicodeLetters` — Cyrillic text, catches Impl2 (ASCII-only letters) and Impl3 (byte-level iteration)
+  - `TestMultipleAddStrings` — accumulation across calls
+  - `TestOnlyNewlines` — newline-only content
+  - `TestMixedContent` — letters, digits, symbols, newlines
 
-## Test Results
-- All 10 test cases pass
-- `go vet` clean
+## Verification
+
+- `COUNTER_IMPL=4 go test -v` — all 9 tests PASS
+- `COUNTER_IMPL=1 go test` — FAIL (4 tests detect wrong line counting)
+- `COUNTER_IMPL=2 go test` — FAIL (1 test detects ASCII-only letter counting)
+- `COUNTER_IMPL=3 go test` — FAIL (1 test detects byte-level iteration bug)
+- `go vet ./...` — clean

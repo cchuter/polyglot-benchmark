@@ -1,47 +1,62 @@
-# Implementation Plan: polyglot-go-connect
+# Implementation Plan: polyglot-go-counter
 
-## File to Modify
+## Overview
 
-- `go/exercises/practice/connect/connect.go`
+Write a test suite in `counter_test.go` that validates the `Counter` interface implementations. The test suite must pass on `Impl4` (correct) and detect bugs in `Impl1`, `Impl2`, and `Impl3`.
 
-## Approach
+## Files to Modify
 
-Use a flood-fill (DFS) algorithm with visited tracking via bit flags on a board representation.
+- `go/exercises/practice/counter/counter_test.go` — Replace the stub with a complete test suite
 
-### Data Structures
+## Architectural Decisions
 
-1. **Constants** using `iota` bit flags for stone colors and connected state:
-   - `white`, `black`, `connectedWhite`, `connectedBlack`
+1. **Helper function**: Use an `assertCounts` helper that checks all three counts (lines, letters, characters) in one call, reducing boilerplate and improving readability.
+2. **Test structure**: Each test creates a fresh counter via `makeCounter()`, calls `AddString()` zero or more times, then asserts expected counts.
+3. **No table-driven tests**: Since each test case exercises a distinct scenario with different semantics, individual test functions are clearer than a table-driven approach.
 
-2. **`board` struct**: holds height, width, and a 2D `[][]int8` field array
+## Test Cases (ordered by complexity)
 
-3. **`coord` struct**: simple x,y pair
+### 1. TestNoAddString — No strings added
+- Expected: 0 lines, 0 letters, 0 characters
+- Validates: baseline behavior of a fresh counter
 
-### Algorithm
+### 2. TestEmptyString — Add empty string
+- Expected: 0 lines, 0 letters, 0 characters
+- Validates: empty input doesn't create a line
 
-1. Parse the input strings into a `board`, mapping 'X' to `black` and 'O' to `white`
-2. For black (X), start from all cells in the leftmost column (x=0); target is rightmost column (x=width-1)
-3. For white (O), start from all cells in the top row (y=0); target is bottom row (y=height-1)
-4. DFS from each start cell: if the cell has the correct color and hasn't been visited (connected flag not set), mark it connected and recurse into all 6 hex neighbors
-5. If any DFS reaches a target cell, that player wins
-6. Check black first, then white. Return "" if neither wins.
+### 3. TestSimpleASCIINoNewline — "hello"
+- Expected: 1 line, 5 letters, 5 characters
+- **Catches Impl1**: Impl1 only counts `\n` as lines, so reports 0 lines for "hello"
 
-### Hex Adjacency
+### 4. TestASCIIWithNewlineInMiddle — "Hello\nworld!"
+- Expected: 2 lines, 10 letters, 12 characters
+- **Catches Impl1**: Reports 1 line instead of 2
 
-Six neighbors of (x,y): `(x+1,y), (x-1,y), (x,y+1), (x,y-1), (x-1,y+1), (x+1,y-1)`
+### 5. TestStringEndingWithNewline — "hello\n"
+- Expected: 1 line, 5 letters, 6 characters
+- Validates: trailing newline doesn't add an extra line
 
-### Functions
+### 6. TestUnicodeLetters — "здравствуй, мир\n"
+- Expected: 1 line, 13 letters, 16 characters
+- **Catches Impl2**: Only detects ASCII letters, reports 0 letters
+- **Catches Impl3**: Iterates by byte (not rune), gets wrong character count (29 bytes vs 16 runes)
 
-- `newBoard([]string) (board, error)` — parse input
-- `(board).at(coord, colorFlags) (bool, bool)` — check color and connected status
-- `(board).markConnected(coord, colorFlags)` — set connected flag
-- `(board).validCoord(coord) bool` — bounds check
-- `(board).neighbors(coord) []coord` — return valid hex neighbors
-- `(board).startCoords(colorFlags) []coord` — starting edge cells
-- `(board).isTargetCoord(coord, colorFlags) bool` — check if at winning edge
-- `(board).evaluate(coord, colorFlags) bool` — recursive DFS
-- `ResultOf([]string) (string, error)` — main entry point
+### 7. TestMultipleAddStrings — "hello\n" then "world"
+- Expected: 2 lines, 10 letters, 11 characters
+- Validates: accumulation across multiple AddString calls
 
-## Ordering
+### 8. TestOnlyNewlines — "\n\n\n"
+- Expected: 3 lines, 0 letters, 3 characters
+- Validates: newline-only strings
 
-Single file change. Write the complete implementation in `connect.go`.
+### 9. TestMixedContent — "abc 123!@#\ndef"
+- Expected: 2 lines, 6 letters, 14 characters
+- Validates: mixed alphanumeric and symbols
+
+## Verification Steps
+
+1. `COUNTER_IMPL=4 go test -v` — all tests pass
+2. `COUNTER_IMPL=1 go test -v` — fails (line counting bug)
+3. `COUNTER_IMPL=2 go test -v` — fails (Unicode letter bug)
+4. `COUNTER_IMPL=3 go test -v` — fails (byte vs rune bug)
+5. `go vet ./...` — no issues
