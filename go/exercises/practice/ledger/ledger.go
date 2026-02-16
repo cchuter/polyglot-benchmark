@@ -1,7 +1,7 @@
 package ledger
 
 import (
-	"errors"
+	"bytes"
 	"fmt"
 	"sort"
 	"strings"
@@ -14,121 +14,146 @@ type Entry struct {
 	Change      int
 }
 
+func FormatLedger(currency, locale string, entries []Entry) (string, error) {
+	symbol, found := currencySymbols[currency]
+	if !found {
+		return "", fmt.Errorf("Invalid or unknown currency %q", currency)
+	}
+	locInfo, found := locales[locale]
+	if !found {
+		return "", fmt.Errorf("Invalid or unknown locale %q", locale)
+	}
+	entriesCopy := make([]Entry, len(entries))
+	copy(entriesCopy, entries)
+	sort.Sort(entrySlice(entriesCopy))
+	var buf bytes.Buffer
+	buf.WriteString(fmt.Sprintf("%-10s | %-25s | %s\n",
+		locInfo.translations["date"],
+		locInfo.translations["descr"],
+		locInfo.translations["change"]))
+	for _, entry := range entriesCopy {
+		date, err := time.Parse("2006-01-02", entry.Date)
+		if err != nil {
+			return "", err
+		}
+		description := entry.Description
+		if len(description) > 25 {
+			description = description[:22] + "..."
+		}
+		buf.WriteString(fmt.Sprintf("%-10s | %-25s | %13s\n",
+			locInfo.dateString(date),
+			description,
+			locInfo.currencyString(symbol, entry.Change)))
+	}
+	return buf.String(), nil
+}
+
 var currencySymbols = map[string]string{
 	"USD": "$",
 	"EUR": "€",
 }
 
-func FormatLedger(currency string, locale string, entries []Entry) (string, error) {
-	symbol, ok := currencySymbols[currency]
-	if !ok {
-		return "", errors.New("invalid currency")
-	}
-
-	if locale != "en-US" && locale != "nl-NL" {
-		return "", errors.New("invalid locale")
-	}
-
-	sorted := make([]Entry, len(entries))
-	copy(sorted, entries)
-
-	for _, e := range sorted {
-		if _, err := time.Parse("2006-01-02", e.Date); err != nil {
-			return "", err
-		}
-	}
-
-	sort.Slice(sorted, func(i, j int) bool {
-		if sorted[i].Date != sorted[j].Date {
-			return sorted[i].Date < sorted[j].Date
-		}
-		if sorted[i].Description != sorted[j].Description {
-			return sorted[i].Description < sorted[j].Description
-		}
-		return sorted[i].Change < sorted[j].Change
-	})
-
-	var b strings.Builder
-
-	if locale == "en-US" {
-		b.WriteString("Date       | Description               | Change\n")
-	} else {
-		b.WriteString("Datum      | Omschrijving              | Verandering\n")
-	}
-
-	for _, e := range sorted {
-		date := formatDate(e.Date, locale)
-		desc := truncateDescription(e.Description)
-		change := formatChange(e.Change, symbol, locale)
-		b.WriteString(fmt.Sprintf("%-10s | %-25s | %13s\n", date, desc, change))
-	}
-
-	return b.String(), nil
+type localeInfo struct {
+	currency     func(symbol string, cents int, negative bool) string
+	dateFormat   string
+	translations map[string]string
 }
 
-func formatDate(date string, locale string) string {
-	t, _ := time.Parse("2006-01-02", date)
-	if locale == "en-US" {
-		return t.Format("01/02/2006")
+func (f localeInfo) currencyString(symbol string, cents int) string {
+	negative := false
+	if cents < 0 {
+		cents *= -1
+		negative = true
 	}
-	return t.Format("02-01-2006")
+	return f.currency(symbol, cents, negative)
 }
 
-func truncateDescription(desc string) string {
-	if len(desc) > 25 {
-		return desc[:22] + "..."
-	}
-	return desc
+func (f localeInfo) dateString(t time.Time) string {
+	return t.Format(f.dateFormat)
 }
 
-func formatChange(cents int, symbol string, locale string) string {
-	negative := cents < 0
-	abs := cents
+var locales = map[string]localeInfo{
+	"nl-NL": {
+		currency:   dutchCurrencyFormat,
+		dateFormat: "02-01-2006",
+		translations: map[string]string{
+			"date":   "Datum",
+			"descr":  "Omschrijving",
+			"change": "Verandering",
+		},
+	},
+	"en-US": {
+		currency:   americanCurrencyFormat,
+		dateFormat: "01/02/2006",
+		translations: map[string]string{
+			"date":   "Date",
+			"descr":  "Description",
+			"change": "Change",
+		},
+	},
+}
+
+func dutchCurrencyFormat(symbol string, cents int, negative bool) string {
+	var buf bytes.Buffer
+	buf.WriteString(symbol)
+	buf.WriteRune(' ')
+	buf.WriteString(moneyToString(cents, ".", ","))
 	if negative {
-		abs = -abs
-	}
-	units := abs / 100
-	frac := abs % 100
-
-	var thousandsSep, decimalSep string
-	if locale == "en-US" {
-		thousandsSep = ","
-		decimalSep = "."
+		buf.WriteRune('-')
 	} else {
-		thousandsSep = "."
-		decimalSep = ","
+		buf.WriteRune(' ')
 	}
-
-	unitsStr := formatWithThousands(units, thousandsSep)
-	amount := fmt.Sprintf("%s%s%02d", unitsStr, decimalSep, frac)
-
-	if locale == "en-US" {
-		if negative {
-			return "(" + symbol + amount + ")"
-		}
-		return symbol + amount + " "
-	}
-	if negative {
-		return symbol + " " + amount + "-"
-	}
-	return symbol + " " + amount + " "
+	return buf.String()
 }
 
-func formatWithThousands(n int, sep string) string {
-	s := fmt.Sprintf("%d", n)
-	if len(s) <= 3 {
-		return s
+func americanCurrencyFormat(symbol string, cents int, negative bool) string {
+	var buf bytes.Buffer
+	if negative {
+		buf.WriteRune('(')
 	}
-	var result strings.Builder
-	remainder := len(s) % 3
-	if remainder > 0 {
-		result.WriteString(s[:remainder])
+	buf.WriteString(symbol)
+	buf.WriteString(moneyToString(cents, ",", "."))
+	if negative {
+		buf.WriteRune(')')
+	} else {
+		buf.WriteRune(' ')
 	}
-	for i := remainder; i < len(s); i += 3 {
-		if result.Len() > 0 {
-			result.WriteString(sep)
-		}
-		result.WriteString(s[i : i+3])
+	return buf.String()
+}
+
+func moneyToString(cents int, thousandsSep, decimalSep string) string {
+	centsStr := fmt.Sprintf("%03d", cents)
+	centsPart := centsStr[len(centsStr)-2:]
+	rest := centsStr[:len(centsStr)-2]
+	var parts []string
+	for len(rest) > 3 {
+		parts = append(parts, rest[len(rest)-3:])
+		rest = rest[:len(rest)-3]
 	}
-	return result.String()
+	if len(rest) > 0 {
+		parts = append(parts, rest)
+	}
+	revParts := make([]string, 0, len(parts))
+	for i := len(parts) - 1; i >= 0; i-- {
+		revParts = append(revParts, parts[i])
+	}
+	var buf bytes.Buffer
+	buf.WriteString(strings.Join(revParts, thousandsSep))
+	buf.WriteString(decimalSep)
+	buf.WriteString(centsPart)
+	return buf.String()
+}
+
+type entrySlice []Entry
+
+func (e entrySlice) Len() int      { return len(e) }
+func (e entrySlice) Swap(i, j int) { e[i], e[j] = e[j], e[i] }
+func (e entrySlice) Less(i, j int) bool {
+	if e[i].Date != e[j].Date {
+		return e[i].Date < e[j].Date
+	}
+	if e[i].Description != e[j].Description {
+		return e[i].Description < e[j].Description
+	}
+	return e[i].Change < e[j].Change
 }
