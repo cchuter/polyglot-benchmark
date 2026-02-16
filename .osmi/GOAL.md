@@ -1,24 +1,28 @@
-# Goal: polyglot-go-hexadecimal
+# Goal: Kindergarten Garden (Go)
 
 ## Problem Statement
 
-Implement the `hexadecimal` Go exercise: convert a hexadecimal string (e.g. "10af8c") to its decimal `int64` equivalent using first principles — no built-in or external conversion libraries.
+Implement the Kindergarten Garden exercise in Go. Given a diagram of a kindergarten garden (two rows of plant codes) and a list of children's names, determine which plants each child is responsible for.
 
-The solution must also handle invalid input and overflow, returning typed errors.
+Each child gets 4 cups (2 per row), assigned alphabetically by name from left to right. Plant codes are single uppercase letters: G (grass), C (clover), R (radishes), V (violets).
 
 ## Acceptance Criteria
 
-1. **`ParseHex(s string) (int64, error)`** correctly converts valid hex strings (uppercase and lowercase) to their `int64` decimal value.
-2. **Empty strings** return a `*ParseError` whose `.Err` is `ErrSyntax` (error message contains "syntax").
-3. **Invalid characters** (e.g. "peanut", "2cg134") return a `*ParseError` whose `.Err` is `ErrSyntax`.
-4. **Overflow values** (e.g. "8000000000000000", "9223372036854775809") return a `*ParseError` whose `.Err` is `ErrRange` (error message contains "range").
-5. **`HandleErrors(tests []string) []string`** calls `ParseHex` on each input and returns a list of "none", "syntax", or "range" strings corresponding to the error category.
-6. All tests pass: `go test ./...` in the hexadecimal exercise directory.
-7. `go vet ./...` passes with no issues.
+1. `NewGarden(diagram string, children []string) (*Garden, error)` constructs a Garden from a diagram and list of children names
+2. `(*Garden).Plants(child string) ([]string, bool)` returns the list of plant names for a given child, or `ok=false` if the child is not in the garden
+3. Children are assigned cups alphabetically (sorted by name), but the original `children` slice must NOT be modified
+4. Garden objects are self-contained (no package-level state shared between instances)
+5. Error cases handled:
+   - Diagram must start with `\n` (3 parts when split on `\n`, first part empty)
+   - Rows must be equal length
+   - Row length must equal `2 * number of children`
+   - No duplicate children names
+   - Only valid plant codes (G, C, R, V)
+6. All tests pass: `TestGarden`, `TestNamesNotModified`, `TestTwoGardens`, benchmarks
 
 ## Key Constraints
 
-- No use of `strconv.ParseInt`, `fmt.Sscanf`, or any built-in/external hex parsing.
-- Must use first-principles character-by-character conversion.
-- Must handle both upper and lowercase hex digits (a-f, A-F).
-- Must detect int64 overflow and return range errors.
+- Package name: `kindergarten`
+- Solution file: `kindergarten_garden.go`
+- Must pass all tests in `kindergarten_garden_test.go` without modification
+- Go 1.18 module

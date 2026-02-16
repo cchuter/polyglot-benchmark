@@ -1,26 +1,17 @@
-# Plan Review: polyglot-go-hexadecimal
+# Plan Review
 
-**Reviewer:** Self-review (no codex agent available in tmux environment)
+## Reviewer: Plan Agent (standing in for codex)
 
-## Assessment: APPROVED
+## Verdict: APPROVED - No bugs found
 
-The plan is correct, complete, and well-aligned with both the test expectations and the reference solution.
+## Key observations:
 
-## Verification Points
+1. **Pointer receiver on `Plants`**: Must dereference `*Garden` to do map lookup: `(*g)[child]`
+2. **Loop nesting order**: Outer = rows, middle = children, inner = cup offsets (0 and 1). Getting this wrong silently produces incorrect plant orderings.
+3. **No separate "odd cups" check needed**: The `len(row) == 2*len(children)` check subsumes it.
+4. **Duplicate detection via map length**: Works because inserting same key twice overwrites, reducing map size vs slice size.
+5. **Empty string child names**: Caught by row-length mismatch in the tests, no special handling needed.
+6. **Two gardens test**: Naturally satisfied by map value type stored per garden instance.
+7. **Invalid name lookup**: Map lookup returns `(nil, false)` for missing keys — correct behavior.
 
-### 1. Error Message Requirements ✅
-The test at line 50 checks `strings.Contains(strings.ToLower(err.Error()), test.errCase)`. The `ParseError.Error()` method includes the sentinel error's text (e.g. "invalid syntax" contains "syntax", "value out of range" contains "range"). This will pass correctly.
-
-### 2. Overflow Detection ✅
-- Test case `"8000000000000000"` = 0x8000000000000000 = 9223372036854775808 which exceeds `math.MaxInt64` (9223372036854775807). The `n >= math.MaxInt64/16+1` check catches this.
-- Test case `"9223372036854775809"` has non-hex characters ('9' is valid hex but the string is too long). It will overflow during accumulation.
-
-### 3. HandleErrors Type Assertion ✅
-The `switch pe, ok := err.(*ParseError)` pattern correctly handles the nil case first (before checking `ok`), which avoids a nil pointer dereference.
-
-### 4. Imports ✅
-Only `errors` and `math` are needed. No external dependencies.
-
-## Potential Issues: None
-
-The plan closely follows the proven reference solution, which is the correct approach for this exercise. No modifications needed.
+## No revisions needed. Proceeding to implementation.

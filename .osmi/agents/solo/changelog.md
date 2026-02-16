@@ -1,14 +1,18 @@
-# Change Log: polyglot-go-hexadecimal
+# Solo Agent Change Log
 
-## Changes
+## Change 1: Implement kindergarten garden solution
 
-### `go/exercises/practice/hexadecimal/hexadecimal.go`
-- **Modified**: Replaced empty stub with full implementation
-- Added `ErrRange` and `ErrSyntax` sentinel errors
-- Added `ParseError` struct with `Error()` method
-- Implemented `ParseHex(string) (int64, error)` — character-by-character hex-to-decimal conversion with overflow detection
-- Implemented `HandleErrors([]string) []string` — classifies ParseHex errors as "none", "syntax", or "range"
+**File modified:** `go/exercises/practice/kindergarten-garden/kindergarten_garden.go`
 
-## Test Results
-- `go test ./...` — PASS
-- `go vet ./...` — clean
+**What was done:**
+- Defined `Garden` type as `map[string][]string`
+- Implemented `NewGarden` constructor with full validation:
+  - Diagram format (must have 2 rows preceded by empty line)
+  - Row length equality
+  - Cup count matches children count (2 cups per child per row)
+  - Duplicate name detection via map length comparison
+  - Invalid plant code detection (only G, C, R, V allowed)
+- Implemented `Plants` method as pointer-receiver map lookup
+- Children are sorted alphabetically via a copy (input not mutated)
+
+**Test results:** All 15 tests pass, `go vet` clean

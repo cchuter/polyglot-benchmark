@@ -1,17 +1,18 @@
-# Context: polyglot-go-hexadecimal
+# Context: Kindergarten Garden Implementation
 
-## Files Modified
-- `go/exercises/practice/hexadecimal/hexadecimal.go` — full implementation
+## Status: Complete
 
-## Key Decisions
-- Character-by-character hex parsing with byte-level switch statement
-- Overflow detection: pre-multiply check (`n >= MaxInt64/16+1`) and post-add check (`n1 < n`)
-- `ParseError` wraps sentinel errors (`ErrSyntax`, `ErrRange`) with input string
-- `HandleErrors` uses type assertion switch on `*ParseError`
+## Solution file
+`go/exercises/practice/kindergarten-garden/kindergarten_garden.go`
 
-## Test Results
-- `go test ./...` — PASS (all 11 test cases)
-- `go vet ./...` — clean
+## Approach
+- `Garden` is `map[string][]string` (child name → 4 plant names)
+- `NewGarden` validates diagram format, row equality, cup count, duplicates, plant codes
+- Children sorted alphabetically via a copy (input not mutated)
+- `Plants` is a pointer-receiver map lookup returning `([]string, bool)`
+
+## Test results
+All 15 tests pass: 13 in TestGarden, TestNamesNotModified, TestTwoGardens. `go vet` clean.
 
 ## Branch
-- `issue-172` pushed to origin
+`issue-174` pushed to origin

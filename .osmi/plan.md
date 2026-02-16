@@ -1,47 +1,41 @@
-# Implementation Plan: polyglot-go-hexadecimal
-
-## Overview
-
-Implement `ParseHex` and `HandleErrors` in `go/exercises/practice/hexadecimal/hexadecimal.go`. The solution follows the reference implementation pattern from `.meta/example.go`.
+# Implementation Plan: Kindergarten Garden
 
 ## File to Modify
 
-**`go/exercises/practice/hexadecimal/hexadecimal.go`** — currently a stub with only `package hexadecimal`.
+- `go/exercises/practice/kindergarten-garden/kindergarten_garden.go`
 
-## Implementation Details
+## Design
 
-### 1. Define Error Sentinels and Types
+### Type Definition
 
 ```go
-var ErrRange = errors.New("value out of range")
-var ErrSyntax = errors.New("invalid syntax")
+type Garden map[string][]string
 ```
 
-Define `ParseError` struct with `Num string` and `Err error` fields, and an `Error()` method that produces a message containing the sentinel error text (so the test's `strings.Contains(strings.ToLower(err.Error()), "syntax")` / `"range"` checks pass).
+`Garden` is a map from child name to their list of 4 plant names. Using a map type alias keeps it simple and makes `Plants` a straightforward map lookup.
 
-### 2. Implement `ParseHex(s string) (int64, error)`
+### `NewGarden(diagram string, children []string) (*Garden, error)`
 
-Character-by-character conversion:
-1. If input is empty, return syntax error.
-2. Iterate over each byte of the string.
-3. Map `'0'-'9'` → 0-9, `'a'-'f'` → 10-15, `'A'-'F'` → 10-15; anything else is a syntax error.
-4. Before multiplying accumulator by 16, check if `n >= math.MaxInt64/16 + 1` to detect overflow.
-5. After adding the digit value, check if the result wrapped (new value < old value) for overflow.
-6. On overflow, return range error.
+1. Split diagram on `\n` — must produce exactly 3 parts with `parts[0] == ""`
+2. Validate rows have equal length
+3. Copy children slice (to avoid mutating the input), sort the copy alphabetically
+4. Validate row length equals `2 * len(sortedChildren)`
+5. Initialize a `Garden` map, inserting each child with an empty slice (capacity 4)
+6. Check for duplicates: if `len(garden) != len(sortedChildren)`, there were duplicates
+7. Iterate over both rows, for each child at index `nx`, extract their 2 cups per row (positions `2*nx` and `2*nx+1`)
+8. Map each cup code to its plant name (G→grass, C→clover, R→radishes, V→violets); return error for invalid codes
+9. Return `&garden, nil`
 
-### 3. Implement `HandleErrors(tests []string) []string`
+### `(*Garden).Plants(child string) ([]string, bool)`
 
-For each input string, call `ParseHex`, type-assert the error to `*ParseError`, and classify as "none", "syntax", or "range".
+Simple map lookup: `p, ok := (*g)[child]; return p, ok`
 
-## Approach & Ordering
+## Approach
 
-1. Write the complete solution in `hexadecimal.go`
-2. Run `go test` to verify all tests pass
-3. Run `go vet` to verify no issues
-4. Commit
+This follows the reference solution in `.meta/example.go` closely, which is the canonical approach for this exercise. The implementation is straightforward — a single file change replacing the stub.
 
-## Architectural Decisions
+## Ordering
 
-- Follow the reference solution's approach closely since it's well-structured and handles edge cases correctly.
-- Use `goto Error` pattern matching the reference for consistency with the exercise's style.
-- Import only `errors` and `math` from the standard library (no `fmt` needed since error messages are string-concatenated).
+1. Write the full implementation in `kindergarten_garden.go`
+2. Run tests to verify
+3. Commit
