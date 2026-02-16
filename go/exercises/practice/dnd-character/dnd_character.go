@@ -1,5 +1,12 @@
 package dndcharacter
 
+import (
+	"math"
+	"math/rand"
+	"sort"
+)
+
+// Character represents a D&D character with ability scores and hitpoints.
 type Character struct {
 	Strength     int
 	Dexterity    int
@@ -10,17 +17,31 @@ type Character struct {
 	Hitpoints    int
 }
 
-// Modifier calculates the ability modifier for a given ability score
+// Modifier calculates the ability modifier for a given ability score.
 func Modifier(score int) int {
-	panic("Please implement the Modifier() function")
+	return int(math.Floor(float64(score-10) / 2.0))
 }
 
-// Ability uses randomness to generate the score for an ability
+// Ability uses randomness to generate the score for an ability.
 func Ability() int {
-	panic("Please implement the Ability() function")
+	rolls := make([]int, 4)
+	for i := range rolls {
+		rolls[i] = rand.Intn(6) + 1
+	}
+	sort.Ints(rolls)
+	return rolls[1] + rolls[2] + rolls[3]
 }
 
-// GenerateCharacter creates a new Character with random scores for abilities
+// GenerateCharacter creates a new Character with random scores for abilities.
 func GenerateCharacter() Character {
-	panic("Please implement the GenerateCharacter() function")
+	c := Character{
+		Strength:     Ability(),
+		Dexterity:    Ability(),
+		Constitution: Ability(),
+		Intelligence: Ability(),
+		Wisdom:       Ability(),
+		Charisma:     Ability(),
+	}
+	c.Hitpoints = 10 + Modifier(c.Constitution)
+	return c
 }
