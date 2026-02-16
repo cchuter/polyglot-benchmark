@@ -2,66 +2,52 @@ package alphametics
 
 import (
 	"errors"
+	"math"
 	"sort"
 	"strings"
 )
 
 func Solve(puzzle string) (map[string]int, error) {
-	// Step 1: Parse the puzzle
 	sides := strings.SplitN(puzzle, "==", 2)
 	if len(sides) != 2 {
-		return nil, errors.New("invalid puzzle format")
-	}
-	lhs := strings.TrimSpace(sides[0])
-	rhs := strings.TrimSpace(sides[1])
-
-	addends := strings.Split(lhs, "+")
-	for i := range addends {
-		addends[i] = strings.TrimSpace(addends[i])
-	}
-	result := strings.TrimSpace(rhs)
-
-	allWords := append(addends, result)
-
-	// Step 2: Extract unique letters and identify leading letters
-	seen := make(map[byte]bool)
-	var letters []byte
-	for _, word := range allWords {
-		for i := 0; i < len(word); i++ {
-			if !seen[word[i]] {
-				seen[word[i]] = true
-				letters = append(letters, word[i])
-			}
-		}
+		return nil, errors.New("invalid puzzle: missing ==")
 	}
 
+	addendStrs := strings.Split(sides[0], "+")
+	resultStr := strings.TrimSpace(sides[1])
+
+	var addends []string
+	for _, a := range addendStrs {
+		addends = append(addends, strings.TrimSpace(a))
+	}
+
+	// Compute weight for each letter and identify leading letters.
+	weights := make(map[byte]int)
 	leading := make(map[byte]bool)
-	for _, word := range allWords {
+
+	for _, word := range addends {
 		if len(word) > 1 {
 			leading[word[0]] = true
 		}
-	}
-
-	n := len(letters)
-
-	// Step 3: Compute letter weights
-	weights := make(map[byte]int)
-	for _, word := range addends {
-		place := 1
-		for i := len(word) - 1; i >= 0; i-- {
-			weights[word[i]] += place
-			place *= 10
-		}
-	}
-	{
-		place := 1
-		for i := len(result) - 1; i >= 0; i-- {
-			weights[result[i]] -= place
-			place *= 10
+		for i, ch := range word {
+			pow := int(math.Pow(10, float64(len(word)-1-i)))
+			weights[byte(ch)] += pow
 		}
 	}
 
-	// Step 4: Sort letters by descending absolute weight
+	if len(resultStr) > 1 {
+		leading[resultStr[0]] = true
+	}
+	for i, ch := range resultStr {
+		pow := int(math.Pow(10, float64(len(resultStr)-1-i)))
+		weights[byte(ch)] -= pow
+	}
+
+	// Collect unique letters sorted by descending absolute weight.
+	letters := make([]byte, 0, len(weights))
+	for ch := range weights {
+		letters = append(letters, ch)
+	}
 	sort.Slice(letters, func(i, j int) bool {
 		ai := weights[letters[i]]
 		if ai < 0 {
@@ -74,7 +60,8 @@ func Solve(puzzle string) (map[string]int, error) {
 		return ai > aj
 	})
 
-	// Build indexed arrays for fast access in recursion
+	// Build ordered weight and leading arrays for fast access.
+	n := len(letters)
 	w := make([]int, n)
 	isLeading := make([]bool, n)
 	for i, ch := range letters {
@@ -82,92 +69,39 @@ func Solve(puzzle string) (map[string]int, error) {
 		isLeading[i] = leading[ch]
 	}
 
-	// Step 5: Recursive backtracking with pruning
+	// Recursive backtracking.
 	assignment := make([]int, n)
-	var solve func(idx int, partialSum int, usedMask int) bool
+	var used [10]bool
 
-	solve = func(idx int, partialSum int, usedMask int) bool {
+	var solve func(idx, sum int) bool
+	solve = func(idx, sum int) bool {
 		if idx == n {
-			return partialSum == 0
+			return sum == 0
 		}
-
 		for d := 0; d <= 9; d++ {
-			if usedMask&(1<<d) != 0 {
+			if used[d] {
 				continue
 			}
 			if d == 0 && isLeading[idx] {
 				continue
 			}
-
-			newSum := partialSum + w[idx]*d
-			newMask := usedMask | (1 << d)
-
-			// Compute loose bounds for remaining letters
-			if idx+1 < n {
-				minBound := 0
-				maxBound := 0
-				for j := idx + 1; j < n; j++ {
-					wj := w[j]
-					// Find min and max available digits for this letter
-					var lo, hi int
-					if isLeading[j] {
-						// Leading letter: smallest available non-zero digit
-						lo = -1
-						for dd := 1; dd <= 9; dd++ {
-							if newMask&(1<<dd) == 0 {
-								if lo == -1 {
-									lo = dd
-								}
-								hi = dd
-							}
-						}
-					} else {
-						lo = -1
-						for dd := 0; dd <= 9; dd++ {
-							if newMask&(1<<dd) == 0 {
-								if lo == -1 {
-									lo = dd
-								}
-								hi = dd
-							}
-						}
-					}
-					if lo == -1 {
-						// No available digit — this path is impossible
-						goto nextDigit
-					}
-					if wj > 0 {
-						minBound += wj * lo
-						maxBound += wj * hi
-					} else {
-						minBound += wj * hi
-						maxBound += wj * lo
-					}
-				}
-				// Check if zero is achievable
-				if newSum+minBound > 0 || newSum+maxBound < 0 {
-					goto nextDigit
-				}
-			}
-
+			used[d] = true
 			assignment[idx] = d
-			if solve(idx+1, newSum, newMask) {
+			if solve(idx+1, sum+d*w[idx]) {
 				return true
 			}
-
-		nextDigit:
+			used[d] = false
 		}
 		return false
 	}
 
-	if !solve(0, 0, 0) {
+	if !solve(0, 0) {
 		return nil, errors.New("no solution found")
 	}
 
-	// Step 6: Build result map
-	result2 := make(map[string]int, n)
+	result := make(map[string]int, n)
 	for i, ch := range letters {
-		result2[string(ch)] = assignment[i]
+		result[string(ch)] = assignment[i]
 	}
-	return result2, nil
+	return result, nil
 }
