@@ -34,7 +34,6 @@ func NewGame() *Game {
 // Roll records one roll for a bowling frame with 'pins' knocked down.
 // An error is possible depending on pin value and previous rolls.
 func (g *Game) Roll(pins int) error {
-	// Validate pin count on roll.
 	if pins > pinsPerFrame {
 		return ErrPinCountExceedsPinsOnTheLane
 	}
@@ -65,7 +64,7 @@ func (g *Game) Roll(pins int) error {
 			g.completeTheFrame()
 			return nil
 		}
-		// For last frame, is it complete now ?
+		// For last frame, is it complete now?
 		if g.rawFrameScore(g.rFrameStart) < pinsPerFrame {
 			// Yes, complete.
 			g.completeTheFrame()
