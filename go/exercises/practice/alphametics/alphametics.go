@@ -2,106 +2,223 @@ package alphametics
 
 import (
 	"errors"
-	"math"
 	"sort"
 	"strings"
 )
 
+type solver struct {
+	letters    []byte
+	weights    []int64
+	isLeading  []bool
+	nLetters   int
+	assignment [26]int
+	used       [10]bool
+}
+
+// Solve parses an alphametics puzzle and returns a mapping of letters to digits.
 func Solve(puzzle string) (map[string]int, error) {
-	sides := strings.SplitN(puzzle, "==", 2)
+	sides := strings.Split(puzzle, "==")
 	if len(sides) != 2 {
-		return nil, errors.New("invalid puzzle: missing ==")
+		return nil, errors.New("invalid puzzle: must contain exactly one ==")
 	}
 
 	addendStrs := strings.Split(sides[0], "+")
-	resultStr := strings.TrimSpace(sides[1])
+	if len(addendStrs) == 0 {
+		return nil, errors.New("invalid puzzle: no addends")
+	}
 
-	var addends []string
+	var words []string
 	for _, a := range addendStrs {
-		addends = append(addends, strings.TrimSpace(a))
+		w := strings.TrimSpace(a)
+		if w == "" {
+			return nil, errors.New("invalid puzzle: empty addend")
+		}
+		words = append(words, w)
 	}
 
-	// Compute weight for each letter and identify leading letters.
-	weights := make(map[byte]int)
-	leading := make(map[byte]bool)
-
-	for _, word := range addends {
-		if len(word) > 1 {
-			leading[word[0]] = true
-		}
-		for i, ch := range word {
-			pow := int(math.Pow(10, float64(len(word)-1-i)))
-			weights[byte(ch)] += pow
-		}
+	result := strings.TrimSpace(sides[1])
+	if result == "" {
+		return nil, errors.New("invalid puzzle: empty result")
 	}
 
-	if len(resultStr) > 1 {
-		leading[resultStr[0]] = true
-	}
-	for i, ch := range resultStr {
-		pow := int(math.Pow(10, float64(len(resultStr)-1-i)))
-		weights[byte(ch)] -= pow
+	allWords := append(words, result)
+
+	// Validate characters and collect unique letters
+	var letterSet [26]bool
+	for _, w := range allWords {
+		for i := 0; i < len(w); i++ {
+			c := w[i]
+			if c < 'A' || c > 'Z' {
+				return nil, errors.New("invalid puzzle: non-uppercase letter")
+			}
+			letterSet[c-'A'] = true
+		}
 	}
 
-	// Collect unique letters sorted by descending absolute weight.
-	letters := make([]byte, 0, len(weights))
-	for ch := range weights {
-		letters = append(letters, ch)
+	var uniqueLetters []byte
+	for i := 0; i < 26; i++ {
+		if letterSet[i] {
+			uniqueLetters = append(uniqueLetters, byte(i)+'A')
+		}
 	}
-	sort.Slice(letters, func(i, j int) bool {
-		ai := weights[letters[i]]
-		if ai < 0 {
-			ai = -ai
+	if len(uniqueLetters) > 10 {
+		return nil, errors.New("invalid puzzle: more than 10 unique letters")
+	}
+
+	// Compute weights
+	var weightMap [26]int64
+	for _, w := range words {
+		var pow int64 = 1
+		for i := len(w) - 1; i >= 0; i-- {
+			weightMap[w[i]-'A'] += pow
+			pow *= 10
 		}
-		aj := weights[letters[j]]
-		if aj < 0 {
-			aj = -aj
+	}
+	{
+		var pow int64 = 1
+		for i := len(result) - 1; i >= 0; i-- {
+			weightMap[result[i]-'A'] -= pow
+			pow *= 10
 		}
-		return ai > aj
+	}
+
+	// Identify leading letters
+	var leadingSet [26]bool
+	for _, w := range allWords {
+		if len(w) > 1 {
+			leadingSet[w[0]-'A'] = true
+		}
+	}
+
+	// Build parallel slices
+	n := len(uniqueLetters)
+	letters := make([]byte, n)
+	weights := make([]int64, n)
+	isLeading := make([]bool, n)
+	for i, c := range uniqueLetters {
+		letters[i] = c
+		weights[i] = weightMap[c-'A']
+		isLeading[i] = leadingSet[c-'A']
+	}
+
+	// Sort by descending |weight|
+	indices := make([]int, n)
+	for i := range indices {
+		indices[i] = i
+	}
+	sort.Slice(indices, func(a, b int) bool {
+		wa := weights[indices[a]]
+		wb := weights[indices[b]]
+		if wa < 0 {
+			wa = -wa
+		}
+		if wb < 0 {
+			wb = -wb
+		}
+		return wa > wb
 	})
 
-	// Build ordered weight and leading arrays for fast access.
-	n := len(letters)
-	w := make([]int, n)
-	isLeading := make([]bool, n)
-	for i, ch := range letters {
-		w[i] = weights[ch]
-		isLeading[i] = leading[ch]
+	sortedLetters := make([]byte, n)
+	sortedWeights := make([]int64, n)
+	sortedLeading := make([]bool, n)
+	for i, idx := range indices {
+		sortedLetters[i] = letters[idx]
+		sortedWeights[i] = weights[idx]
+		sortedLeading[i] = isLeading[idx]
 	}
 
-	// Recursive backtracking.
-	assignment := make([]int, n)
-	var used [10]bool
+	s := &solver{
+		letters:   sortedLetters,
+		weights:   sortedWeights,
+		isLeading: sortedLeading,
+		nLetters:  n,
+	}
+	for i := range s.assignment {
+		s.assignment[i] = -1
+	}
 
-	var solve func(idx, sum int) bool
-	solve = func(idx, sum int) bool {
-		if idx == n {
-			return sum == 0
+	if s.solve(0, 0) {
+		result := make(map[string]int, n)
+		for i := 0; i < n; i++ {
+			result[string(s.letters[i])] = s.assignment[s.letters[i]-'A']
 		}
-		for d := 0; d <= 9; d++ {
-			if used[d] {
-				continue
-			}
-			if d == 0 && isLeading[idx] {
-				continue
-			}
-			used[d] = true
-			assignment[idx] = d
-			if solve(idx+1, sum+d*w[idx]) {
-				return true
-			}
-			used[d] = false
+		return result, nil
+	}
+
+	return nil, errors.New("no solution found")
+}
+
+func (s *solver) solve(depth int, currentSum int64) bool {
+	if depth == s.nLetters {
+		return currentSum == 0
+	}
+
+	// Compute admissible bounds for remaining letters (depth+1 onwards)
+	var minDelta, maxDelta int64
+	for i := depth + 1; i < s.nLetters; i++ {
+		w := s.weights[i]
+		lo := s.minAvail(s.isLeading[i])
+		hi := s.maxAvail()
+		var cMin, cMax int64
+		if w >= 0 {
+			cMin = w * int64(lo)
+			cMax = w * int64(hi)
+		} else {
+			cMin = w * int64(hi)
+			cMax = w * int64(lo)
 		}
-		return false
+		minDelta += cMin
+		maxDelta += cMax
 	}
 
-	if !solve(0, 0) {
-		return nil, errors.New("no solution found")
+	// Include current letter's contribution bounds for pruning
+	w := s.weights[depth]
+	for d := 0; d <= 9; d++ {
+		if s.used[d] {
+			continue
+		}
+		if d == 0 && s.isLeading[depth] {
+			continue
+		}
+
+		contrib := w * int64(d)
+		newSum := currentSum + contrib
+
+		// Prune: check if 0 is reachable
+		if newSum+minDelta > 0 || newSum+maxDelta < 0 {
+			continue
+		}
+
+		s.used[d] = true
+		s.assignment[s.letters[depth]-'A'] = d
+		if s.solve(depth+1, newSum) {
+			return true
+		}
+		s.used[d] = false
+		s.assignment[s.letters[depth]-'A'] = -1
 	}
 
-	result := make(map[string]int, n)
-	for i, ch := range letters {
-		result[string(ch)] = assignment[i]
+	return false
+}
+
+func (s *solver) minAvail(leading bool) int {
+	start := 0
+	if leading {
+		start = 1
 	}
-	return result, nil
+	for d := start; d <= 9; d++ {
+		if !s.used[d] {
+			return d
+		}
+	}
+	return 9
+}
+
+func (s *solver) maxAvail() int {
+	for d := 9; d >= 0; d-- {
+		if !s.used[d] {
+			return d
+		}
+	}
+	return 0
 }
