@@ -2,72 +2,50 @@ package bookstore
 
 import "sort"
 
-var discount = [6]int{0, 0, 5, 10, 20, 25}
-
+// Cost calculates the total cost of a basket of books, applying the best possible discount.
 func Cost(books []int) int {
 	if len(books) == 0 {
 		return 0
 	}
 
+	// Count frequency of each book
 	freq := make(map[int]int)
 	for _, b := range books {
 		freq[b]++
 	}
 
+	// Collect and sort frequencies descending
 	counts := make([]int, 0, len(freq))
 	for _, c := range freq {
 		counts = append(counts, c)
 	}
 	sort.Sort(sort.Reverse(sort.IntSlice(counts)))
 
-	memo := make(map[[5]int]int)
-	return solve(toKey(counts), memo)
-}
-
-func toKey(counts []int) [5]int {
-	var k [5]int
-	for i := 0; i < len(counts) && i < 5; i++ {
-		k[i] = counts[i]
-	}
-	return k
-}
-
-func solve(key [5]int, memo map[[5]int]int) int {
-	if key == [5]int{} {
-		return 0
-	}
-	if v, ok := memo[key]; ok {
-		return v
-	}
-
-	// Count how many non-zero entries
-	nonZero := 0
-	for _, c := range key {
-		if c > 0 {
-			nonZero++
+	// Build group counts using histogram layer-peeling
+	n := len(counts)
+	groups := make([]int, 6) // groups[i] = number of groups of size i
+	for w := n; w >= 1; w-- {
+		next := 0
+		if w < n {
+			next = counts[w]
 		}
+		groups[w] = counts[w-1] - next
 	}
 
-	best := 1<<63 - 1
-	for g := 1; g <= nonZero; g++ {
-		// Take one book from each of the top g slots
-		var next [5]int
-		next = key
-		for i := 0; i < g; i++ {
-			next[i]--
-		}
-		// Re-sort descending
-		sorted := next[:]
-		sort.Sort(sort.Reverse(sort.IntSlice(sorted)))
-		copy(next[:], sorted)
-
-		groupCost := g * 800 * (100 - discount[g]) / 100
-		total := groupCost + solve(next, memo)
-		if total < best {
-			best = total
-		}
+	// Optimize: convert (5,3) pairs to (4,4) pairs
+	pairs := groups[5]
+	if groups[3] < pairs {
+		pairs = groups[3]
 	}
+	groups[5] -= pairs
+	groups[3] -= pairs
+	groups[4] += 2 * pairs
 
-	memo[key] = best
-	return best
+	// Calculate total cost
+	costTable := [6]int{0, 800, 1520, 2160, 2560, 3000}
+	total := 0
+	for i := 1; i <= 5; i++ {
+		total += groups[i] * costTable[i]
+	}
+	return total
 }
