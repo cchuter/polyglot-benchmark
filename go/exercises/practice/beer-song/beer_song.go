@@ -5,13 +5,11 @@ import (
 	"fmt"
 )
 
-// Song returns the full lyrics for 99 bottles of beer.
 func Song() string {
-	s, _ := Verses(99, 0)
-	return s
+	result, _ := Verses(99, 0)
+	return result
 }
 
-// Verses returns verses from start down to stop (inclusive), separated by blank lines.
 func Verses(start, stop int) (string, error) {
 	switch {
 	case start < 0 || start > 99:
@@ -31,7 +29,6 @@ func Verses(start, stop int) (string, error) {
 	return buf.String(), nil
 }
 
-// Verse returns a single verse of the song for bottle number n.
 func Verse(n int) (string, error) {
 	switch {
 	case n < 0 || n > 99:
