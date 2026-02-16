@@ -5,24 +5,20 @@ import (
 	"fmt"
 )
 
-// Song returns the full lyrics for 99 bottles of beer.
 func Song() string {
 	result, _ := Verses(99, 0)
 	return result
 }
 
-// Verses returns the lyrics from verse start down to verse stop.
 func Verses(start, stop int) (string, error) {
-	if start < 0 || start > 99 {
-		return "", fmt.Errorf("start value[%d] is not a valid verse", start)
+	switch {
+	case start < 0 || start > 99:
+		return "", fmt.Errorf("start value [%d] is not valid", start)
+	case stop < 0 || stop > 99:
+		return "", fmt.Errorf("stop value [%d] is not valid", stop)
+	case start < stop:
+		return "", fmt.Errorf("start [%d] is less than stop [%d]", start, stop)
 	}
-	if stop < 0 || stop > 99 {
-		return "", fmt.Errorf("stop value[%d] is not a valid verse", stop)
-	}
-	if start < stop {
-		return "", fmt.Errorf("start value[%d] is less than stop value[%d]", start, stop)
-	}
-
 	var buf bytes.Buffer
 	for i := start; i >= stop; i-- {
 		v, _ := Verse(i)
@@ -32,7 +28,6 @@ func Verses(start, stop int) (string, error) {
 	return buf.String(), nil
 }
 
-// Verse returns a single verse of the song.
 func Verse(n int) (string, error) {
 	switch {
 	case n < 0 || n > 99:
