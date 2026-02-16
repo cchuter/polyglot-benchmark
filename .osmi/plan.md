@@ -1,52 +1,47 @@
-# Implementation Plan: bottle-song
+# Implementation Plan: polyglot-go-connect
 
 ## File to Modify
 
-- `go/exercises/practice/bottle-song/bottle_song.go`
+- `go/exercises/practice/connect/connect.go`
 
 ## Approach
 
-### Data Structure
+Use a flood-fill (DFS) algorithm with visited tracking via bit flags on a board representation.
 
-A simple map or slice mapping integers 0-10 to their English word equivalents:
-- 10 → "ten", 9 → "nine", ..., 1 → "one", 0 → "no"
+### Data Structures
 
-### Helper: `numberWord(n int) string`
+1. **Constants** using `iota` bit flags for stone colors and connected state:
+   - `white`, `black`, `connectedWhite`, `connectedBlack`
 
-Returns the lowercase English word for numbers 0-10. Returns "no" for 0.
+2. **`board` struct**: holds height, width, and a 2D `[][]int8` field array
 
-### Helper: `bottlePlural(n int) string`
+3. **`coord` struct**: simple x,y pair
 
-Returns "bottle" if n == 1, "bottles" otherwise (including 0).
+### Algorithm
 
-### Main Function: `Recite(startBottles, takeDown int) []string`
+1. Parse the input strings into a `board`, mapping 'X' to `black` and 'O' to `white`
+2. For black (X), start from all cells in the leftmost column (x=0); target is rightmost column (x=width-1)
+3. For white (O), start from all cells in the top row (y=0); target is bottom row (y=height-1)
+4. DFS from each start cell: if the cell has the correct color and hasn't been visited (connected flag not set), mark it connected and recurse into all 6 hex neighbors
+5. If any DFS reaches a target cell, that player wins
+6. Check black first, then white. Return "" if neither wins.
 
-1. Initialize an empty `[]string` result
-2. Loop from `startBottles` down for `takeDown` iterations:
-   - If not the first verse, append an empty string `""` separator
-   - Get the title-cased number word for current count (e.g., "Ten")
-   - Build line 1: `"{Word} green {bottle/bottles} hanging on the wall,"`
-   - Line 2: same as line 1
-   - Line 3: `"And if one green bottle should accidentally fall,"`
-   - Get the number word for (current - 1) — lowercase for all including "no"
-   - Build line 4: `"There'll be {word} green {bottle/bottles} hanging on the wall."`
-   - Append all 4 lines to result
-3. Return result
+### Hex Adjacency
 
-### Title Casing
+Six neighbors of (x,y): `(x+1,y), (x-1,y), (x,y+1), (x,y-1), (x-1,y+1), (x+1,y-1)`
 
-For lines 1 and 2, the number word needs initial capital (e.g., "Ten"). The test file includes a `Title` helper but it's only used in tests. We can simply use `strings.Title` or manually capitalize the first letter. Since the words are simple ASCII, we'll capitalize the first character ourselves to avoid deprecated function warnings.
+### Functions
 
-### Key Details from Test Cases
+- `newBoard([]string) (board, error)` — parse input
+- `(board).at(coord, colorFlags) (bool, bool)` — check color and connected status
+- `(board).markConnected(coord, colorFlags)` — set connected flag
+- `(board).validCoord(coord) bool` — bounds check
+- `(board).neighbors(coord) []coord` — return valid hex neighbors
+- `(board).startCoords(colorFlags) []coord` — starting edge cells
+- `(board).isTargetCoord(coord, colorFlags) bool` — check if at winning edge
+- `(board).evaluate(coord, colorFlags) bool` — recursive DFS
+- `ResultOf([]string) (string, error)` — main entry point
 
-- Line 3 always says "one green bottle" (singular) — this is constant
-- Line 4 uses the lowercase number word
-- "no" is lowercase in "There'll be no green bottles"
-- 1 bottle is singular, everything else (including 0) is plural
+## Ordering
 
-## Order of Changes
-
-1. Add number-to-word mapping
-2. Add `bottlePlural` helper
-3. Implement `Recite` function
-4. Run tests to verify
+Single file change. Write the complete implementation in `connect.go`.

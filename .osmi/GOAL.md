@@ -1,48 +1,36 @@
-# Goal: Implement bottle-song Exercise in Go
+# Goal: polyglot-go-connect
 
 ## Problem Statement
 
-Implement the `Recite` function in `go/exercises/practice/bottle-song/bottle_song.go` that generates lyrics to the "Ten Green Bottles" children's song.
+Implement the `ResultOf` function in `go/exercises/practice/connect/connect.go` for the Hex/Polygon/CON-TAC-TIX board game. Given a board representation as a slice of strings, determine which player (if any) has won by connecting their stones to opposite sides.
 
-The function signature is:
-```go
-func Recite(startBottles int, takeDown int) []string
-```
-
-- `startBottles`: the number of bottles to start from (1-10)
-- `takeDown`: how many verses to recite (counting down from startBottles)
-
-Each verse follows the pattern:
-```
-{N} green bottle(s) hanging on the wall,
-{N} green bottle(s) hanging on the wall,
-And if one green bottle should accidentally fall,
-There'll be {N-1} green bottle(s) hanging on the wall.
-```
-
-Key variations:
-- Numbers are spelled out as words with initial capital (e.g., "Ten", "Nine")
-- "bottle" is singular when count is 1, "bottles" is plural otherwise
-- When count reaches 0, use "no green bottles"
-- Verses are separated by an empty string `""` in the returned slice
+- Player "O" wins by connecting top to bottom
+- Player "X" wins by connecting left to right
+- The board is a parallelogram with hexagonal fields
+- Boards may not be "fair" (different dimensions, unequal piece counts)
 
 ## Acceptance Criteria
 
-1. `Recite(10, 1)` returns the first verse (Ten green bottles...)
-2. `Recite(3, 1)` returns the verse starting at three
-3. `Recite(2, 1)` correctly handles singular "one green bottle" in the "There'll be" line
-4. `Recite(1, 1)` correctly uses singular "bottle" and "no green bottles" in the result
-5. `Recite(10, 2)` returns two verses separated by an empty string
-6. `Recite(3, 3)` returns last three verses with proper separators
-7. `Recite(10, 10)` returns all ten verses of the complete song
-8. All tests pass: `go test ./...` in the exercise directory
-9. Code passes `go vet ./...`
+1. `ResultOf` accepts `[]string` (board rows with spaces stripped) and returns `(string, error)`
+2. Returns `"X"` when X has a connected path from left edge to right edge
+3. Returns `"O"` when O has a connected path from top edge to bottom edge
+4. Returns `""` when neither player has won
+5. All 10 test cases in `cases_test.go` pass, including:
+   - Empty board (no winner)
+   - 1x1 boards (single stone wins)
+   - Edge-only placement (no winner)
+   - Illegal diagonal (no winner)
+   - Adjacent angles (no winner)
+   - Left-to-right X win
+   - Top-to-bottom O win
+   - Convoluted path X win
+   - Spiral path X win
+6. `go test ./...` passes with no errors
+7. `go vet ./...` passes with no warnings
 
 ## Key Constraints
 
-- Package name must be `bottlesong`
-- Must implement `func Recite(startBottles int, takeDown int) []string`
-- Numbers must be English words with title case (Ten, Nine, ..., One, no)
-- Singular/plural "bottle"/"bottles" must be correct
-- Return type is `[]string` where each element is one line of lyrics
-- Verses separated by empty string elements in the slice
+- Solution goes in `connect.go` in package `connect`
+- Must export function `ResultOf([]string) (string, error)`
+- Hexagonal adjacency: each cell has 6 neighbors: (x±1,y), (x,y±1), (x-1,y+1), (x+1,y-1)
+- Input strings have spaces already stripped by the test harness's `prepare` function

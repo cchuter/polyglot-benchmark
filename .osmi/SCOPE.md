@@ -1,23 +1,20 @@
-# Scope: bottle-song Exercise
+# Scope: polyglot-go-connect
 
 ## In Scope
 
-- Implement `Recite` function in `go/exercises/practice/bottle-song/bottle_song.go`
-- Number-to-word conversion for 0-10
-- Singular/plural bottle handling
-- Multi-verse generation with empty-string separators
-- Pass all existing tests in `bottle_song_test.go` and `cases_test.go`
+- Implement `ResultOf` function in `go/exercises/practice/connect/connect.go`
+- Supporting types and helper functions within the same file
+- Passing all existing test cases
 
 ## Out of Scope
 
-- Modifying test files
-- Adding additional exports or functions beyond what tests require
-- Error handling for out-of-range inputs (tests don't test this)
-- External dependencies (module uses only stdlib)
+- Modifying test files (`connect_test.go`, `cases_test.go`)
+- Modifying `go.mod`
+- Modifying `.meta/` or `.docs/` files
+- Performance optimization beyond passing tests
+- Adding new test cases
 
 ## Dependencies
 
-- Go standard library only
-- No external packages (go.mod has no dependencies)
-- Package: `bottlesong`
-- Go version: 1.18+
+- Go standard library only (no external packages)
+- `go.mod` specifies `go 1.18`

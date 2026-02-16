@@ -1,18 +1,17 @@
-# Context Summary: bottle-song Exercise
+# Context Summary: polyglot-go-connect
 
 ## Status: Complete
 
-## Key Decisions
-- Used a simple slice for number-to-word mapping (indices 0-10)
-- Kept helpers unexported (`capitalize`, `bottlePlural`) since only `Recite` needs to be exported
-- Used `strings.ToUpper` for first-character capitalization instead of deprecated `strings.Title`
-
 ## Files Modified
-- `go/exercises/practice/bottle-song/bottle_song.go` — full implementation
+- `go/exercises/practice/connect/connect.go` — Full implementation of `ResultOf` function
 
-## Test Results
-- 7/7 tests pass
-- `go vet` clean
+## Key Details
+- Algorithm: DFS flood-fill with bit-flag visited tracking on a hex grid
+- 6 hex neighbors: (x±1,y), (x,y±1), (x-1,y+1), (x+1,y-1)
+- X connects left-to-right, O connects top-to-bottom
+- Input arrives pre-stripped of spaces by test harness `prepare()` function
+- All 10 test cases pass, go vet clean
 
 ## Branch
-- `issue-153` pushed to origin
+- Feature branch: `issue-156`
+- Pushed to origin

@@ -2,30 +2,66 @@ package connect
 
 import "errors"
 
+const (
+	white = 1 << iota
+	black
+	connectedWhite
+	connectedBlack
+)
+
+type colorFlags struct {
+	color     int8
+	connected int8
+}
+
+var flagsBlack = colorFlags{color: black, connected: connectedBlack}
+var flagsWhite = colorFlags{color: white, connected: connectedWhite}
+
 type coord struct {
-	x, y int
+	x int
+	y int
 }
 
 type board struct {
 	height int
 	width  int
-	fields [][]byte
+	fields [][]int8
 }
 
 func newBoard(lines []string) (board, error) {
-	if len(lines) == 0 {
+	if len(lines) < 1 {
 		return board{}, errors.New("no lines given")
 	}
-	if len(lines[0]) == 0 {
+	height := len(lines)
+	if len(lines[0]) < 1 {
 		return board{}, errors.New("first line is empty")
 	}
-	height := len(lines)
 	width := len(lines[0])
-	fields := make([][]byte, height)
+	fields := make([][]int8, height)
+	backing := make([]int8, height*width)
+	for i := range fields {
+		fields[i], backing = backing[:width], backing[width:]
+	}
 	for y, line := range lines {
-		fields[y] = []byte(line)
+		for x, c := range line {
+			switch c {
+			case 'X':
+				fields[y][x] = black
+			case 'O':
+				fields[y][x] = white
+			}
+		}
 	}
 	return board{height: height, width: width, fields: fields}, nil
+}
+
+func (b board) at(c coord, cf colorFlags) (isColor, isConnected bool) {
+	f := b.fields[c.y][c.x]
+	return f&cf.color == cf.color, f&cf.connected == cf.connected
+}
+
+func (b board) markConnected(c coord, cf colorFlags) {
+	b.fields[c.y][c.x] |= cf.connected
 }
 
 func (b board) validCoord(c coord) bool {
@@ -34,55 +70,68 @@ func (b board) validCoord(c coord) bool {
 
 func (b board) neighbors(c coord) []coord {
 	dirs := []coord{{1, 0}, {-1, 0}, {0, 1}, {0, -1}, {-1, 1}, {1, -1}}
-	result := make([]coord, 0, 6)
+	coords := make([]coord, 0, 6)
 	for _, d := range dirs {
 		nc := coord{x: c.x + d.x, y: c.y + d.y}
 		if b.validCoord(nc) {
-			result = append(result, nc)
+			coords = append(coords, nc)
 		}
 	}
-	return result
+	return coords
 }
 
-func (b board) hasPath(start coord, stone byte, isTarget func(coord) bool, visited map[coord]bool) bool {
-	if visited[start] {
-		return false
+func (b board) startCoords(cf colorFlags) []coord {
+	if cf.color == white {
+		coords := make([]coord, b.width)
+		for i := 0; i < b.width; i++ {
+			coords[i] = coord{x: i}
+		}
+		return coords
 	}
-	if b.fields[start.y][start.x] != stone {
-		return false
+	coords := make([]coord, b.height)
+	for i := 0; i < b.height; i++ {
+		coords[i] = coord{y: i}
 	}
-	visited[start] = true
-	if isTarget(start) {
-		return true
+	return coords
+}
+
+func (b board) isTargetCoord(c coord, cf colorFlags) bool {
+	if cf.color == white {
+		return c.y == b.height-1
 	}
-	for _, nc := range b.neighbors(start) {
-		if b.hasPath(nc, stone, isTarget, visited) {
+	return c.x == b.width-1
+}
+
+func (b board) evaluate(c coord, cf colorFlags) bool {
+	isColor, isConnected := b.at(c, cf)
+	if isColor && !isConnected {
+		b.markConnected(c, cf)
+		if b.isTargetCoord(c, cf) {
 			return true
+		}
+		for _, nc := range b.neighbors(c) {
+			if b.evaluate(nc, cf) {
+				return true
+			}
 		}
 	}
 	return false
 }
 
-// ResultOf determines the winner of a Hex board game.
-// "X" wins by connecting left to right, "O" wins by connecting top to bottom.
+// ResultOf evaluates the board and returns the winner, "X" or "O".
+// If there is no winner, it returns "".
 func ResultOf(lines []string) (string, error) {
 	b, err := newBoard(lines)
 	if err != nil {
 		return "", err
 	}
-	// Check if X wins (left to right)
-	visited := make(map[coord]bool)
-	for y := 0; y < b.height; y++ {
-		start := coord{x: 0, y: y}
-		if b.hasPath(start, 'X', func(c coord) bool { return c.x == b.width-1 }, visited) {
+	for _, c := range b.startCoords(flagsBlack) {
+		if b.evaluate(c, flagsBlack) {
 			return "X", nil
 		}
 	}
-	// Check if O wins (top to bottom)
-	visited = make(map[coord]bool)
-	for x := 0; x < b.width; x++ {
-		start := coord{x: x, y: 0}
-		if b.hasPath(start, 'O', func(c coord) bool { return c.y == b.height-1 }, visited) {
+	for _, c := range b.startCoords(flagsWhite) {
+		if b.evaluate(c, flagsWhite) {
 			return "O", nil
 		}
 	}
