@@ -22,7 +22,7 @@ func (c *counter) addBytes(n int) {
 	c.ops++
 }
 
-func (c *counter) count() (n int64, ops int) {
+func (c *counter) count() (int64, int) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	return c.bytes, c.ops
@@ -34,12 +34,12 @@ type readCounter struct {
 }
 
 func (rc *readCounter) Read(p []byte) (int, error) {
-	m, err := rc.r.Read(p)
-	rc.addBytes(m)
-	return m, err
+	n, err := rc.r.Read(p)
+	rc.addBytes(n)
+	return n, err
 }
 
-func (rc *readCounter) ReadCount() (n int64, nops int) {
+func (rc *readCounter) ReadCount() (int64, int) {
 	return rc.count()
 }
 
@@ -49,12 +49,12 @@ type writeCounter struct {
 }
 
 func (wc *writeCounter) Write(p []byte) (int, error) {
-	m, err := wc.w.Write(p)
-	wc.addBytes(m)
-	return m, err
+	n, err := wc.w.Write(p)
+	wc.addBytes(n)
+	return n, err
 }
 
-func (wc *writeCounter) WriteCount() (n int64, nops int) {
+func (wc *writeCounter) WriteCount() (int64, int) {
 	return wc.count()
 }
 
@@ -63,18 +63,12 @@ type rwCounter struct {
 	ReadCounter
 }
 
-func NewWriteCounter(w io.Writer) WriteCounter {
-	return &writeCounter{
-		w:       w,
-		counter: newCounter(),
-	}
+func NewReadCounter(r io.Reader) ReadCounter {
+	return &readCounter{r: r, counter: newCounter()}
 }
 
-func NewReadCounter(r io.Reader) ReadCounter {
-	return &readCounter{
-		r:       r,
-		counter: newCounter(),
-	}
+func NewWriteCounter(w io.Writer) WriteCounter {
+	return &writeCounter{w: w, counter: newCounter()}
 }
 
 func NewReadWriteCounter(rw io.ReadWriter) ReadWriteCounter {
