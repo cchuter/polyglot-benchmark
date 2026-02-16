@@ -6,110 +6,124 @@ import (
 	"strings"
 )
 
-// Solve solves an alphametics puzzle and returns a mapping of letters to digits.
 func Solve(puzzle string) (map[string]int, error) {
-	tokens := strings.Fields(puzzle)
-	var addends []string
-	var result string
-	seenEquals := false
-	for _, tok := range tokens {
-		switch tok {
-		case "+":
-			continue
-		case "==":
-			seenEquals = true
-			continue
-		}
-		if seenEquals {
-			result = tok
-		} else {
-			addends = append(addends, tok)
+	sides := strings.Split(puzzle, "==")
+	if len(sides) != 2 {
+		return nil, errors.New("invalid puzzle")
+	}
+
+	rhsWord := strings.TrimSpace(sides[1])
+	lhsParts := strings.Split(sides[0], "+")
+	addends := make([]string, 0, len(lhsParts))
+	for _, p := range lhsParts {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			addends = append(addends, p)
 		}
 	}
 
-	// Compute coefficients for each letter.
-	var coef [26]int
-	var seen [26]bool
-	for _, word := range addends {
-		pow := 1
-		for i := len(word) - 1; i >= 0; i-- {
-			idx := word[i] - 'A'
-			coef[idx] += pow
-			seen[idx] = true
-			pow *= 10
+	allWords := make([]string, 0, len(addends)+1)
+	allWords = append(allWords, addends...)
+	allWords = append(allWords, rhsWord)
+
+	// Leading letters of multi-char words cannot be zero
+	leading := make(map[byte]bool)
+	for _, w := range allWords {
+		if len(w) > 1 {
+			leading[w[0]] = true
 		}
 	}
-	pow := 1
-	for i := len(result) - 1; i >= 0; i-- {
-		idx := result[i] - 'A'
-		coef[idx] -= pow
-		seen[idx] = true
-		pow *= 10
-	}
 
-	// Identify leading letters of multi-digit words.
-	var leading [26]bool
-	for _, word := range addends {
-		if len(word) > 1 {
-			leading[word[0]-'A'] = true
+	// Compute weight for each letter.
+	// Addend letters get positive place values, result letters get negative.
+	// A valid solution satisfies: sum(weight[ch] * digit[ch]) == 0
+	weights := make(map[byte]int)
+	for _, w := range addends {
+		pv := 1
+		for i := len(w) - 1; i >= 0; i-- {
+			weights[w[i]] += pv
+			pv *= 10
 		}
 	}
-	if len(result) > 1 {
-		leading[result[0]-'A'] = true
+	pv := 1
+	for i := len(rhsWord) - 1; i >= 0; i-- {
+		weights[rhsWord[i]] -= pv
+		pv *= 10
 	}
 
-	// Collect unique letters.
-	var letters []int
-	for i := 0; i < 26; i++ {
-		if seen[i] {
-			letters = append(letters, i)
-		}
+	// Collect unique letters, sorted by absolute weight descending for better pruning
+	letters := make([]byte, 0, len(weights))
+	for ch := range weights {
+		letters = append(letters, ch)
 	}
-	n := len(letters)
-
-	// Sort by descending absolute coefficient for better pruning.
 	sort.Slice(letters, func(i, j int) bool {
-		ai := coef[letters[i]]
-		if ai < 0 {
-			ai = -ai
+		wi := weights[letters[i]]
+		if wi < 0 {
+			wi = -wi
 		}
-		aj := coef[letters[j]]
-		if aj < 0 {
-			aj = -aj
+		wj := weights[letters[j]]
+		if wj < 0 {
+			wj = -wj
 		}
-		return ai > aj
+		return wi > wj
 	})
 
-	// Build arrays for the solver.
-	c := make([]int, n)
-	lead := make([]bool, n)
-	for i, l := range letters {
-		c[i] = coef[l]
-		lead[i] = leading[l]
+	n := len(letters)
+	w := make([]int, n)
+	isLeading := make([]bool, n)
+	for i, ch := range letters {
+		w[i] = weights[ch]
+		isLeading[i] = leading[ch]
 	}
 
 	assignment := make([]int, n)
-	var used [10]bool
+	used := [10]bool{}
 
-	var solve func(idx, partialSum int) bool
-	solve = func(idx, partialSum int) bool {
+	var solve func(idx, sum int) bool
+	solve = func(idx, sum int) bool {
 		if idx == n {
-			return partialSum == 0
+			return sum == 0
 		}
+
+		// Find min and max available digits for pruning bounds
+		minAvail, maxAvail := -1, -1
 		for d := 0; d <= 9; d++ {
+			if !used[d] {
+				if minAvail == -1 {
+					minAvail = d
+				}
+				maxAvail = d
+			}
+		}
+
+		// Compute loose bounds on remaining weighted sum
+		remMin, remMax := 0, 0
+		for j := idx; j < n; j++ {
+			if w[j] >= 0 {
+				remMin += w[j] * minAvail
+				remMax += w[j] * maxAvail
+			} else {
+				remMin += w[j] * maxAvail
+				remMax += w[j] * minAvail
+			}
+		}
+
+		if sum+remMin > 0 || sum+remMax < 0 {
+			return false
+		}
+
+		startD := 0
+		if isLeading[idx] {
+			startD = 1
+		}
+
+		for d := startD; d <= 9; d++ {
 			if used[d] {
-				continue
-			}
-			if d == 0 && lead[idx] {
-				continue
-			}
-			newSum := partialSum + c[idx]*d
-			if idx < n-1 && !canReachZero(newSum, c[idx+1:]) {
 				continue
 			}
 			used[d] = true
 			assignment[idx] = d
-			if solve(idx+1, newSum) {
+			if solve(idx+1, sum+w[idx]*d) {
 				return true
 			}
 			used[d] = false
@@ -117,27 +131,13 @@ func Solve(puzzle string) (map[string]int, error) {
 		return false
 	}
 
-	if !solve(0, 0) {
-		return nil, errors.New("no solution found")
-	}
-
-	res := make(map[string]int, n)
-	for i, l := range letters {
-		res[string(rune(l+'A'))] = assignment[i]
-	}
-	return res, nil
-}
-
-// canReachZero checks whether the remaining coefficients can potentially
-// be assigned digits such that partialSum + remaining contribution = 0.
-func canReachZero(partialSum int, remCoefs []int) bool {
-	minSum, maxSum := 0, 0
-	for _, c := range remCoefs {
-		if c > 0 {
-			maxSum += c * 9
-		} else {
-			minSum += c * 9
+	if solve(0, 0) {
+		result := make(map[string]int)
+		for i, ch := range letters {
+			result[string(ch)] = assignment[i]
 		}
+		return result, nil
 	}
-	return partialSum+minSum <= 0 && partialSum+maxSum >= 0
+
+	return nil, errors.New("no solution found")
 }
