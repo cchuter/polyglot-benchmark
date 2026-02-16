@@ -35,7 +35,7 @@ func NewGarden(diagram string, children []string) (*Garden, error) {
 	}
 	for _, row := range rows[1:] {
 		for nx, n := range alpha {
-			for cx := range rows[1:] {
+			for cx := range rows[1:] { // a little hack
 				var p string
 				switch row[2*nx+cx] {
 				case 'G':
