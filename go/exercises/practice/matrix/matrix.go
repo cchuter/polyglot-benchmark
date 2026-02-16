@@ -6,58 +6,76 @@ import (
 	"strings"
 )
 
+// Matrix represents a matrix of integers stored as rows of int slices.
 type Matrix [][]int
 
+// New creates a Matrix from a string where rows are separated by newlines
+// and values within a row are separated by whitespace.
 func New(s string) (Matrix, error) {
-	var err error
 	lines := strings.Split(s, "\n")
-	m := make(Matrix, len(lines))
-	for i, l := range lines {
-		ws := strings.Fields(l)
-		if i > 0 && len(ws) != len(m[0]) {
-			return nil, errors.New("rows have unequal length")
+	m := make(Matrix, 0, len(lines))
+	numCols := -1
+
+	for _, line := range lines {
+		fields := strings.Fields(line)
+		if len(fields) == 0 {
+			return nil, errors.New("empty row")
 		}
-		row := make([]int, len(ws))
-		for i, w := range ws {
-			if row[i], err = strconv.Atoi(w); err != nil {
-				return nil, errors.New("invalid int in element data")
+		if numCols == -1 {
+			numCols = len(fields)
+		} else if len(fields) != numCols {
+			return nil, errors.New("uneven rows")
+		}
+		row := make([]int, len(fields))
+		for j, f := range fields {
+			val, err := strconv.Atoi(f)
+			if err != nil {
+				return nil, err
 			}
+			row[j] = val
 		}
-		m[i] = row
+		m = append(m, row)
 	}
+
 	return m, nil
 }
 
-func (m Matrix) Set(row, col, val int) (ok bool) {
-	if row < 0 || row >= len(m) || col < 0 {
-		return false
-	}
-	if cols := len(m[0]); col >= cols {
-		return false
-	}
-	m[row][col] = val
-	return true
-}
-
+// Rows returns a deep copy of the matrix rows.
 func (m Matrix) Rows() [][]int {
-	r := make([][]int, len(m))
-	for i, mr := range m {
-		r[i] = append([]int{}, mr...)
+	result := make([][]int, len(m))
+	for i, row := range m {
+		result[i] = make([]int, len(row))
+		copy(result[i], row)
 	}
-	return r
+	return result
 }
 
+// Cols returns the columns of the matrix as a deep copy.
 func (m Matrix) Cols() [][]int {
 	if len(m) == 0 {
 		return nil
 	}
-	c := make([][]int, len(m[0]))
-	for i := range c {
+	numCols := len(m[0])
+	result := make([][]int, numCols)
+	for j := 0; j < numCols; j++ {
 		col := make([]int, len(m))
-		for j := range col {
-			col[j] = m[j][i]
+		for i := range m {
+			col[i] = m[i][j]
 		}
-		c[i] = col
+		result[j] = col
 	}
-	return c
+	return result
+}
+
+// Set sets the value at the given row and column. Returns true if the
+// indices are valid, false otherwise.
+func (m Matrix) Set(row, col, val int) bool {
+	if row < 0 || row >= len(m) {
+		return false
+	}
+	if col < 0 || col >= len(m[row]) {
+		return false
+	}
+	m[row][col] = val
+	return true
 }
