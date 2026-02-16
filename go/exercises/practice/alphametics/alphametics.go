@@ -2,223 +2,205 @@ package alphametics
 
 import (
 	"errors"
-	"sort"
 	"strings"
+	"unicode"
 )
 
-type solver struct {
-	letters    []byte
-	weights    []int64
-	isLeading  []bool
-	nLetters   int
-	assignment [26]int
-	used       [10]bool
+var decDigits = []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
+
+type problem struct {
+	vDigits      [][]rune
+	maxDigits    int
+	letterValues [26]int
+	lettersUsed  []rune
+	nLetters     int
+	leadingRunes []rune
 }
 
-// Solve parses an alphametics puzzle and returns a mapping of letters to digits.
 func Solve(puzzle string) (map[string]int, error) {
-	sides := strings.Split(puzzle, "==")
-	if len(sides) != 2 {
-		return nil, errors.New("invalid puzzle: must contain exactly one ==")
+	p := parsePuzzle(puzzle)
+	if p == nil {
+		return nil, errors.New("invalid puzzle")
 	}
+	return p.solvePuzzle()
+}
 
-	addendStrs := strings.Split(sides[0], "+")
-	if len(addendStrs) == 0 {
-		return nil, errors.New("invalid puzzle: no addends")
-	}
-
-	var words []string
-	for _, a := range addendStrs {
-		w := strings.TrimSpace(a)
-		if w == "" {
-			return nil, errors.New("invalid puzzle: empty addend")
+func parsePuzzle(puzzle string) (p *problem) {
+	var valueStrings []string
+	p = new(problem)
+	fields := strings.Fields(puzzle)
+	for _, field := range fields {
+		if field == "+" || field == "==" {
+			continue
 		}
-		words = append(words, w)
-	}
-
-	result := strings.TrimSpace(sides[1])
-	if result == "" {
-		return nil, errors.New("invalid puzzle: empty result")
-	}
-
-	allWords := append(words, result)
-
-	// Validate characters and collect unique letters
-	var letterSet [26]bool
-	for _, w := range allWords {
-		for i := 0; i < len(w); i++ {
-			c := w[i]
-			if c < 'A' || c > 'Z' {
-				return nil, errors.New("invalid puzzle: non-uppercase letter")
+		valueStrings = append(valueStrings, field)
+		if len(field) > p.maxDigits {
+			p.maxDigits = len(field)
+		}
+		for _, r := range field {
+			if !unicode.IsUpper(r) {
+				return nil
 			}
-			letterSet[c-'A'] = true
+			p.letterValues[r-'A'] = -1
 		}
 	}
-
-	var uniqueLetters []byte
-	for i := 0; i < 26; i++ {
-		if letterSet[i] {
-			uniqueLetters = append(uniqueLetters, byte(i)+'A')
+	// Collect leading runes of multi-digit words.
+	seen := [26]bool{}
+	for _, s := range valueStrings {
+		if len(s) > 1 {
+			r := rune(s[0])
+			idx := r - 'A'
+			if !seen[idx] {
+				seen[idx] = true
+				p.leadingRunes = append(p.leadingRunes, idx)
+			}
 		}
 	}
-	if len(uniqueLetters) > 10 {
-		return nil, errors.New("invalid puzzle: more than 10 unique letters")
-	}
-
-	// Compute weights
-	var weightMap [26]int64
-	for _, w := range words {
-		var pow int64 = 1
-		for i := len(w) - 1; i >= 0; i-- {
-			weightMap[w[i]-'A'] += pow
-			pow *= 10
+	// Count the letters used.
+	for v := 0; v < len(p.letterValues); v++ {
+		if p.letterValues[v] == -1 {
+			p.nLetters++
 		}
 	}
-	{
-		var pow int64 = 1
-		for i := len(result) - 1; i >= 0; i-- {
-			weightMap[result[i]-'A'] -= pow
-			pow *= 10
+	// Build column structure: vDigits[word][column] where column 0 = ones place.
+	p.vDigits = make([][]rune, len(valueStrings))
+	for i := range valueStrings {
+		p.vDigits[i] = make([]rune, p.maxDigits)
+		for d, r := range valueStrings[i] {
+			j := len(valueStrings[i]) - 1 - d
+			p.vDigits[i][j] = r - 'A' + 1
 		}
 	}
-
-	// Identify leading letters
-	var leadingSet [26]bool
-	for _, w := range allWords {
-		if len(w) > 1 {
-			leadingSet[w[0]-'A'] = true
+	// Build list of letters used (0 == 'A').
+	p.lettersUsed = make([]rune, p.nLetters)
+	for n, v := 0, 0; v < len(p.letterValues); v++ {
+		if p.letterValues[v] == -1 {
+			p.lettersUsed[n] = rune(v)
+			n++
 		}
 	}
+	return p
+}
 
-	// Build parallel slices
-	n := len(uniqueLetters)
-	letters := make([]byte, n)
-	weights := make([]int64, n)
-	isLeading := make([]bool, n)
-	for i, c := range uniqueLetters {
-		letters[i] = c
-		weights[i] = weightMap[c-'A']
-		isLeading[i] = leadingSet[c-'A']
+func (p *problem) solvePuzzle() (map[string]int, error) {
+	for _, digValues := range permutations(decDigits, p.nLetters) {
+		// Assign values to letters.
+		for i, r := range p.lettersUsed {
+			p.letterValues[r] = digValues[i]
+		}
+		// Check leading zeros for all multi-digit words.
+		leadingZero := false
+		for _, idx := range p.leadingRunes {
+			if p.letterValues[idx] == 0 {
+				leadingZero = true
+				break
+			}
+		}
+		if leadingZero {
+			continue
+		}
+		if p.isPuzzleSolution() {
+			return p.puzzleMap(), nil
+		}
+	}
+	return nil, errors.New("no solution")
+}
+
+func (p *problem) isPuzzleSolution() bool {
+	carry := 0
+	for d := 0; d < p.maxDigits; d++ {
+		sum := carry
+		// Sum all addend rows (all except the last) for this column.
+		for n := 0; n < len(p.vDigits)-1; n++ {
+			r := p.vDigits[n][d]
+			if r != 0 {
+				sum += p.letterValues[r-1]
+			}
+		}
+		carry = sum / 10
+		sum %= 10
+		// Check against the result row.
+		r := p.vDigits[len(p.vDigits)-1][d]
+		if r == 0 || sum != p.letterValues[r-1] {
+			return false
+		}
+	}
+	return carry == 0
+}
+
+func (p *problem) puzzleMap() map[string]int {
+	pm := make(map[string]int, p.nLetters)
+	for _, v := range p.lettersUsed {
+		r := v + 'A'
+		pm[string(r)] = p.letterValues[v]
+	}
+	return pm
+}
+
+func permutations(iterable []int, r int) (perms [][]int) {
+	pool := iterable
+	n := len(pool)
+	if r > n {
+		return
 	}
 
-	// Sort by descending |weight|
+	nperm := 1
+	for i := n; i > 1; i-- {
+		nperm *= i
+	}
+	if r < n {
+		d := 1
+		for i := n - r; i > 1; i-- {
+			d *= i
+		}
+		nperm /= d
+	}
+	perms = make([][]int, 0, nperm)
+
 	indices := make([]int, n)
 	for i := range indices {
 		indices[i] = i
 	}
-	sort.Slice(indices, func(a, b int) bool {
-		wa := weights[indices[a]]
-		wb := weights[indices[b]]
-		if wa < 0 {
-			wa = -wa
-		}
-		if wb < 0 {
-			wb = -wb
-		}
-		return wa > wb
-	})
 
-	sortedLetters := make([]byte, n)
-	sortedWeights := make([]int64, n)
-	sortedLeading := make([]bool, n)
-	for i, idx := range indices {
-		sortedLetters[i] = letters[idx]
-		sortedWeights[i] = weights[idx]
-		sortedLeading[i] = isLeading[idx]
+	cycles := make([]int, r)
+	for i := range cycles {
+		cycles[i] = n - i
 	}
 
-	s := &solver{
-		letters:   sortedLetters,
-		weights:   sortedWeights,
-		isLeading: sortedLeading,
-		nLetters:  n,
+	result := make([]int, r)
+	for i, el := range indices[:r] {
+		result[i] = pool[el]
 	}
-	for i := range s.assignment {
-		s.assignment[i] = -1
-	}
+	p2 := make([]int, len(result))
+	copy(p2, result)
+	perms = append(perms, p2)
 
-	if s.solve(0, 0) {
-		result := make(map[string]int, n)
-		for i := 0; i < n; i++ {
-			result[string(s.letters[i])] = s.assignment[s.letters[i]-'A']
+	for n > 0 {
+		i := r - 1
+		for ; i >= 0; i-- {
+			cycles[i]--
+			if cycles[i] == 0 {
+				index := indices[i]
+				for j := i; j < n-1; j++ {
+					indices[j] = indices[j+1]
+				}
+				indices[n-1] = index
+				cycles[i] = n - i
+			} else {
+				j := cycles[i]
+				indices[i], indices[n-j] = indices[n-j], indices[i]
+				for k := i; k < r; k++ {
+					result[k] = pool[indices[k]]
+				}
+				p2 = make([]int, len(result))
+				copy(p2, result)
+				perms = append(perms, p2)
+				break
+			}
 		}
-		return result, nil
-	}
-
-	return nil, errors.New("no solution found")
-}
-
-func (s *solver) solve(depth int, currentSum int64) bool {
-	if depth == s.nLetters {
-		return currentSum == 0
-	}
-
-	// Compute admissible bounds for remaining letters (depth+1 onwards)
-	var minDelta, maxDelta int64
-	for i := depth + 1; i < s.nLetters; i++ {
-		w := s.weights[i]
-		lo := s.minAvail(s.isLeading[i])
-		hi := s.maxAvail()
-		var cMin, cMax int64
-		if w >= 0 {
-			cMin = w * int64(lo)
-			cMax = w * int64(hi)
-		} else {
-			cMin = w * int64(hi)
-			cMax = w * int64(lo)
-		}
-		minDelta += cMin
-		maxDelta += cMax
-	}
-
-	// Include current letter's contribution bounds for pruning
-	w := s.weights[depth]
-	for d := 0; d <= 9; d++ {
-		if s.used[d] {
-			continue
-		}
-		if d == 0 && s.isLeading[depth] {
-			continue
-		}
-
-		contrib := w * int64(d)
-		newSum := currentSum + contrib
-
-		// Prune: check if 0 is reachable
-		if newSum+minDelta > 0 || newSum+maxDelta < 0 {
-			continue
-		}
-
-		s.used[d] = true
-		s.assignment[s.letters[depth]-'A'] = d
-		if s.solve(depth+1, newSum) {
-			return true
-		}
-		s.used[d] = false
-		s.assignment[s.letters[depth]-'A'] = -1
-	}
-
-	return false
-}
-
-func (s *solver) minAvail(leading bool) int {
-	start := 0
-	if leading {
-		start = 1
-	}
-	for d := start; d <= 9; d++ {
-		if !s.used[d] {
-			return d
+		if i < 0 {
+			return
 		}
 	}
-	return 9
-}
-
-func (s *solver) maxAvail() int {
-	for d := 9; d >= 0; d-- {
-		if !s.used[d] {
-			return d
-		}
-	}
-	return 0
+	return
 }
