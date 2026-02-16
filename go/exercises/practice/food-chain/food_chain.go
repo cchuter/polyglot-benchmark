@@ -1,5 +1,7 @@
 package foodchain
 
+const wriggle = " wriggled and jiggled and tickled inside her"
+
 var verse = []struct{ eaten, comment string }{
 	{"", ""},
 	{"fly", "I don't know why she swallowed the fly. Perhaps she'll die."},
@@ -11,8 +13,6 @@ var verse = []struct{ eaten, comment string }{
 	{"cow", "I don't know how she swallowed a cow!\n"},
 	{"horse", "She's dead, of course!"},
 }
-
-const wriggle = " wriggled and jiggled and tickled inside her"
 
 func Verse(v int) string {
 	if v < 1 || v > 8 {
