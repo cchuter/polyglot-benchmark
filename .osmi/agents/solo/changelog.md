@@ -1,23 +1,16 @@
-# Solo Agent Change Log
+# Change Log: error-handling
 
-## Change 1: Implement MakeChain in dominoes.go
+## Changes Made
 
-**File**: `go/exercises/practice/dominoes/dominoes.go`
-**Type**: New implementation (was empty stub)
+### `go/exercises/practice/error-handling/error_handling.go`
+- Implemented `Use(opener ResourceOpener, input string) error` function
+- Retry loop for `TransientError` on resource open
+- `defer r.Close()` ensures resource cleanup in all cases
+- `defer func()` with `recover()` handles panics from `Frob`:
+  - `FrobError`: calls `Defrob(defrobTag)` then returns error
+  - Other errors: returns error directly
+- LIFO defer ordering ensures Defrob runs before Close
 
-### What changed
-- Defined `Domino` type as `[2]int`
-- Implemented `MakeChain` function with two-phase approach:
-  1. **Validation phase**: Even-degree check + Union-Find connectivity check for fast rejection of impossible inputs
-  2. **Construction phase**: Backtracking DFS to find valid chain arrangement
-- Helper functions: `solve`, `hasEvenDegrees`, `isConnected`
-
-### Key decisions
-- Used Union-Find with path compression for connectivity check (handles self-loops correctly)
-- Backtracking over Hierholzer's algorithm — simpler for small input sizes (max 9 in tests)
-- `solve` returns `[]Domino` directly to avoid slice aliasing issues with append
-
-### Test results
-- All 12 test cases pass
+## Test Results
+- All 5 tests pass
 - `go vet` clean
-- Commit: 208b3fa

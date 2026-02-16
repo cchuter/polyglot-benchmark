@@ -1,30 +1,32 @@
-# Goal: Implement Dominoes Chain Solver (Issue #164)
+# Goal: polyglot-go-error-handling
 
 ## Problem Statement
 
-Implement a `MakeChain` function in Go that determines whether a given set of dominoes can be arranged into a valid chain, and if so, returns one such arrangement.
+Implement the `Use` function in `go/exercises/practice/error-handling/error_handling.go` that demonstrates Go error handling and resource management patterns including defer, panic, and recover.
 
-A valid domino chain has these properties:
-- Adjacent dominoes match: the right value of domino `i` equals the left value of domino `i+1`
-- The chain is circular: the left value of the first domino equals the right value of the last domino
-- Every input domino is used exactly once (dominoes may be flipped)
+## What Needs to Be Built
+
+A function `Use(opener ResourceOpener, input string) error` that:
+
+1. Opens a resource using the provided `ResourceOpener` function
+2. Calls `Frob(input)` on the opened resource
+3. Closes the resource in all cases (success, error, panic)
+4. Properly handles errors and panics
 
 ## Acceptance Criteria
 
-1. **Type definition**: Define `type Domino [2]int` in `dominoes.go`
-2. **Function signature**: `func MakeChain(input []Domino) (chain []Domino, ok bool)`
-3. **Empty input**: Returns `([]Domino{}, true)` — empty input is a valid chain
-4. **Single matching domino**: `{1,1}` returns `([]{1,1}, true)`
-5. **Single non-matching domino**: `{1,2}` returns `(nil, false)`
-6. **Multi-element chains**: Correctly finds valid chains for 3, 5, 6, and 9 element inputs
-7. **Disconnected graphs**: Returns `false` for disconnected domino sets even when all vertices have even degree
-8. **Backtracking**: Handles cases requiring backtracking (not just greedy matching)
-9. **All tests pass**: `go test ./...` passes in the `dominoes` exercise directory
-10. **Code quality**: `go vet ./...` passes with no issues
+1. **Happy path**: When opener succeeds and Frob doesn't panic, return nil and ensure Close is called exactly once
+2. **Transient errors**: When opener returns a `TransientError`, keep retrying until it succeeds or returns a non-transient error
+3. **Non-transient open errors**: When opener returns a non-`TransientError` error, return that error immediately
+4. **FrobError panic**: When `Frob` panics with a `FrobError`, call `Defrob(frobError.defrobTag)` on the resource, then Close, and return the error
+5. **Non-FrobError panic**: When `Frob` panics with a non-`FrobError` error, call Close (but not Defrob) and return the error
+6. **Close exactly once**: Resource's `Close()` must be called exactly once whenever a resource was successfully opened
+7. All tests in `error_handling_test.go` pass via `go test ./...`
+8. Code passes `go vet ./...`
 
 ## Key Constraints
 
-- Dominoes can be flipped (rotated) to match
-- Multiple valid chains may exist; the test verifies any valid chain
-- The solution must handle duplicate dominoes
-- The solution must detect disconnected graphs (even-degree check alone is insufficient)
+- Solution must be in package `erratum`
+- Solution file is `error_handling.go`
+- Must use Go's `defer`, `recover`, and named return values
+- Types `Resource`, `ResourceOpener`, `FrobError`, and `TransientError` are defined in `common.go`

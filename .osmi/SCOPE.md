@@ -1,21 +1,24 @@
-# Scope: Dominoes Chain Solver (Issue #164)
+# Scope: polyglot-go-error-handling
 
 ## In Scope
 
-- Implement `Domino` type and `MakeChain` function in `go/exercises/practice/dominoes/dominoes.go`
-- The implementation must pass all existing test cases in `dominoes_test.go` and `cases_test.go`
-- Solution must handle: empty input, single dominos, multi-element chains, disconnected graphs, backtracking
+- Implementing the `Use` function in `go/exercises/practice/error-handling/error_handling.go`
+- Handling TransientError retries on opener
+- Handling FrobError panics (with Defrob call)
+- Handling non-FrobError panics
+- Ensuring resource Close is called exactly once when opened
+- Passing all existing tests
 
 ## Out of Scope
 
-- Modifying test files (`dominoes_test.go`, `cases_test.go`)
+- Modifying `common.go` (read-only type definitions)
+- Modifying `error_handling_test.go` (read-only test definitions)
 - Modifying `go.mod`
 - Adding new test cases
-- Performance optimization beyond what's needed to pass the benchmark
-- Changes to any other exercise or non-dominoes files
+- Adding new type definitions
 
 ## Dependencies
 
-- Go 1.18+ (as specified in go.mod)
-- No external packages — standard library only
-- No dependencies on other exercises in the repository
+- `common.go`: Provides `Resource`, `ResourceOpener`, `FrobError`, `TransientError` types
+- `error_handling_test.go`: Provides the test suite
+- Go standard library only (no external dependencies)
