@@ -1,25 +1,34 @@
-# Goal: Implement paasio Exercise (Go)
+# Goal: Implement palindrome-products exercise in Go
 
 ## Problem Statement
 
-Implement IO statistics wrappers for a PaaS billing system. The `paasio` package needs concrete types that wrap `io.Reader`, `io.Writer`, and `io.ReadWriter` to track the total number of bytes and operations for reads and writes.
-
-The interfaces (`ReadCounter`, `WriteCounter`, `ReadWriteCounter`) are already defined in `interface.go`. The stub file `paasio.go` exists but is empty (only contains the package declaration). The solution must implement three constructor functions and their backing types.
+Implement the `palindrome-products` Exercism exercise in Go. The solution must detect palindrome products in a given range: given a range of numbers [fmin, fmax], find the largest and smallest palindromes which are products of two numbers within that range, along with all factor pairs for each.
 
 ## Acceptance Criteria
 
-1. `NewReadCounter(io.Reader) ReadCounter` — wraps a reader, tracks bytes read and read operations
-2. `NewWriteCounter(io.Writer) WriteCounter` — wraps a writer, tracks bytes written and write operations
-3. `NewReadWriteCounter(io.ReadWriter) ReadWriteCounter` — wraps a read-writer, tracks both read and write stats
-4. All counters must be **thread-safe**: concurrent reads/writes must produce consistent counts
-5. `ReadCount()` returns `(totalBytes int64, totalOps int)` — must be consistent even during concurrent `Read()` calls
-6. `WriteCount()` returns `(totalBytes int64, totalOps int)` — must be consistent even during concurrent `Write()` calls
-7. All existing tests in `paasio_test.go` pass (`go test ./...`)
-8. Code passes `go vet ./...`
+1. **`Product` struct** is defined with fields:
+   - `Product int` — the palindrome value
+   - `Factorizations [][2]int` — all factor pairs producing this palindrome
+
+2. **`Products(fmin, fmax int) (Product, Product, error)`** function:
+   - Returns (pmin, pmax, err)
+   - For valid ranges, finds the smallest and largest palindrome products
+   - Returns all factor pairs `[a, b]` where `a <= b` for each palindrome
+   - Returns an error prefixed with `"fmin > fmax"` when fmin > fmax
+   - Returns an error prefixed with `"no palindromes"` when no palindrome products exist in the range
+
+3. **All 5 test cases pass** (`go test ./...` in the exercise directory):
+   - valid limits 1-9
+   - valid limits 10-99
+   - valid limits 100-999
+   - no palindromes (range 4-10)
+   - fmin > fmax (10, 4)
+
+4. **`go vet ./...`** passes with no issues.
 
 ## Key Constraints
 
-- Must use the `sync.Mutex` (or equivalent synchronization) to ensure thread safety
-- The `ReadCount`/`WriteCount` methods must return atomically consistent snapshots (bytes and ops must correspond)
-- The package name is `paasio` and module is `paasio` with Go 1.18
-- Only `paasio.go` should be modified; `interface.go` and test files are read-only
+- Package name: `palindrome`
+- File: `palindrome_products.go`
+- Must match the test's expected API exactly (function signature, struct fields, error message prefixes)
+- The `.meta/example.go` reference solution exists but the stub `palindrome_products.go` is empty (just the package declaration)

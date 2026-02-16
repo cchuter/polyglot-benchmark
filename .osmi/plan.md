@@ -1,77 +1,45 @@
-# Implementation Plan: paasio
-
-## Overview
-
-Implement IO statistics wrappers in `go/exercises/practice/paasio/paasio.go`. The solution needs three types and three constructor functions, all with thread-safe counting using `sync.Mutex`.
+# Implementation Plan: palindrome-products
 
 ## File to Modify
 
-- `go/exercises/practice/paasio/paasio.go` — the only file to change
+- `go/exercises/practice/palindrome-products/palindrome_products.go`
 
-## Architecture
+No other files need to be created or modified.
 
-### Shared counter type
+## Approach
 
-A `counter` struct holds `bytes int64`, `ops int`, and a `*sync.Mutex`. Two methods:
-- `addBytes(n int)` — locks, increments bytes by n and ops by 1, unlocks
-- `count() (int64, int)` — locks, returns bytes and ops, unlocks
+Implement the solution directly in `palindrome_products.go`, following the reference solution's approach from `.meta/example.go`. The implementation consists of:
 
-This ensures `ReadCount`/`WriteCount` return atomically consistent snapshots.
+### 1. `isPal` helper function
+- Converts an integer to a string
+- Checks if the string reads the same forwards and backwards
+- Uses two-pointer approach (front and back converging)
 
-### readCounter struct
+### 2. `Product` struct
+- `Product int` — the palindrome value
+- `Factorizations [][2]int` — sorted factor pairs
 
-```go
-type readCounter struct {
-    r io.Reader
-    counter
-}
-```
+### 3. `Products(fmin, fmax int) (pmin, pmax Product, err error)` function
 
-- `Read(p []byte) (int, error)` — delegates to `r.Read(p)`, then calls `addBytes(n)` with the returned byte count
-- `ReadCount() (int64, int)` — delegates to `counter.count()`
+**Algorithm:**
+1. Validate: if `fmin > fmax`, return error with prefix `"fmin > fmax"`
+2. Iterate `x` from `fmin` to `fmax`, `y` from `x` to `fmax` (ensures `x <= y`)
+3. Compute `p = x * y`; skip if not palindrome
+4. For each palindrome found, update `pmin` and `pmax`:
+   - If no palindrome found yet (`Factorizations == nil`) or `p` is smaller/larger, replace with new Product
+   - If `p` equals current min/max, append factor pair
+5. After loop, if no palindromes found (both still nil factorizations), return error with prefix `"no palindromes"`
 
-### writeCounter struct
+### Ordering of Changes
 
-```go
-type writeCounter struct {
-    w io.Writer
-    counter
-}
-```
-
-- `Write(p []byte) (int, error)` — delegates to `w.Write(p)`, then calls `addBytes(n)` with the returned byte count
-- `WriteCount() (int64, int)` — delegates to `counter.count()`
-
-### rwCounter struct
-
-```go
-type rwCounter struct {
-    WriteCounter
-    ReadCounter
-}
-```
-
-Embeds both a `WriteCounter` and a `ReadCounter`, satisfying the `ReadWriteCounter` interface through composition.
-
-### Constructor functions
-
-1. `NewReadCounter(r io.Reader) ReadCounter` — returns `&readCounter{r: r, counter: newCounter()}`
-2. `NewWriteCounter(w io.Writer) WriteCounter` — returns `&writeCounter{w: w, counter: newCounter()}`
-3. `NewReadWriteCounter(rw io.ReadWriter) ReadWriteCounter` — returns `&rwCounter{NewWriteCounter(rw), NewReadCounter(rw)}`
-
-### Helper
-
-`newCounter() counter` — returns `counter{mutex: new(sync.Mutex)}`
-
-## Ordering
-
-1. Write the complete implementation in `paasio.go`
-2. Run `go vet ./...` in the exercise directory
-3. Run `go test ./...` in the exercise directory
-4. Fix any issues if needed
+1. Write the complete implementation in `palindrome_products.go`
+2. Run `go test` to verify all 5 tests pass
+3. Run `go vet` to verify no issues
+4. Commit
 
 ## Rationale
 
-- Using `sync.Mutex` rather than `sync/atomic` because the tests require atomically consistent snapshots of both bytes AND ops together (a single lock covers both fields)
-- Embedding `counter` in read/write counter types avoids code duplication
-- Composing `rwCounter` from `WriteCounter` + `ReadCounter` interfaces means read and write have independent locks, which is correct per the interface contract
+- The reference solution in `.meta/example.go` is clean and correct; our implementation follows the same algorithmic approach
+- Using `strconv.Itoa` for palindrome check is simple and readable
+- The nested loop with `y >= x` avoids duplicate factor pairs and ensures `[a, b]` where `a <= b`
+- Using a closure (`compare`) keeps the min/max update logic DRY

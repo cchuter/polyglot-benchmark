@@ -1,22 +1,21 @@
-# Scope: paasio Exercise
+# Scope: palindrome-products
 
 ## In Scope
 
-- Implement `NewReadCounter`, `NewWriteCounter`, `NewReadWriteCounter` constructors in `paasio.go`
-- Implement backing struct types with thread-safe byte/operation counting
-- Implement `Read`, `Write`, `ReadCount`, `WriteCount` methods
-- Ensure all tests pass and `go vet` is clean
+- Implement `Product` struct and `Products` function in `palindrome_products.go`
+- Palindrome detection helper function
+- Error handling for invalid ranges and no-palindrome cases
+- Passing all 5 standard test cases
 
 ## Out of Scope
 
-- Modifying `interface.go` (defines the interfaces, read-only)
-- Modifying `paasio_test.go` (test file, read-only)
+- Bonus/commented-out test cases (negative ranges)
+- Modifying the test file
 - Modifying `go.mod`
-- Adding external dependencies
-- Error handling beyond what the underlying reader/writer provides
-- Any files outside `go/exercises/practice/paasio/`
+- Performance optimizations beyond passing the benchmark
+- Any other exercises or files outside `go/exercises/practice/palindrome-products/`
 
 ## Dependencies
 
-- Go standard library: `io`, `sync`
-- No external packages required
+- Go standard library only (`fmt`, `strconv`)
+- No external packages
