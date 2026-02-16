@@ -2,50 +2,47 @@ package bookstore
 
 import "sort"
 
-// Cost calculates the total cost of a basket of books, applying the best possible discount.
-func Cost(books []int) int {
-	if len(books) == 0 {
-		return 0
-	}
+const bookPrice = 800
 
-	// Count frequency of each book
+var discounts = [6]int{0, 0, 5, 10, 20, 25}
+
+func Cost(books []int) int {
 	freq := make(map[int]int)
 	for _, b := range books {
 		freq[b]++
 	}
-
-	// Collect and sort frequencies descending
 	counts := make([]int, 0, len(freq))
-	for _, c := range freq {
-		counts = append(counts, c)
+	for _, v := range freq {
+		counts = append(counts, v)
 	}
 	sort.Sort(sort.Reverse(sort.IntSlice(counts)))
+	return minCost(counts)
+}
 
-	// Build group counts using histogram layer-peeling
-	n := len(counts)
-	groups := make([]int, 6) // groups[i] = number of groups of size i
-	for w := n; w >= 1; w-- {
-		next := 0
-		if w < n {
-			next = counts[w]
+func minCost(counts []int) int {
+	for len(counts) > 0 && counts[len(counts)-1] == 0 {
+		counts = counts[:len(counts)-1]
+	}
+	if len(counts) == 0 {
+		return 0
+	}
+
+	best := int(^uint(0) >> 1)
+	for groupSize := 1; groupSize <= len(counts); groupSize++ {
+		next := make([]int, len(counts))
+		copy(next, counts)
+		for i := 0; i < groupSize; i++ {
+			next[i]--
 		}
-		groups[w] = counts[w-1] - next
+		sort.Sort(sort.Reverse(sort.IntSlice(next)))
+		cost := groupCost(groupSize) + minCost(next)
+		if cost < best {
+			best = cost
+		}
 	}
+	return best
+}
 
-	// Optimize: convert (5,3) pairs to (4,4) pairs
-	pairs := groups[5]
-	if groups[3] < pairs {
-		pairs = groups[3]
-	}
-	groups[5] -= pairs
-	groups[3] -= pairs
-	groups[4] += 2 * pairs
-
-	// Calculate total cost
-	costTable := [6]int{0, 800, 1520, 2160, 2560, 3000}
-	total := 0
-	for i := 1; i <= 5; i++ {
-		total += groups[i] * costTable[i]
-	}
-	return total
+func groupCost(size int) int {
+	return bookPrice * size * (100 - discounts[size]) / 100
 }
