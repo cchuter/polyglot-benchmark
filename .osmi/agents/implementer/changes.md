@@ -1,17 +1,16 @@
-# Changes: bottle-song implementation
+# Changes: Bowling Scorer Implementation
 
-## File Modified
-- `go/exercises/practice/bottle-song/bottle_song.go`
+## Files Modified
+- `go/exercises/practice/bowling/bowling.go` — Full implementation of bowling game scorer
 
-## What Changed
-Implemented the `Recite(startBottles, takeDown int) []string` function for the bottle-song exercise.
-
-### Added:
-- `numberToWord` map (0-10) for converting integers to English words
-- `titleCase(word string) string` helper to capitalize the first letter
-- `bottleStr(n int) string` helper returning singular "bottle" for n=1, plural "bottles" otherwise
-- `verse(n int) []string` helper generating the 4 lines of a single verse
-- `Recite(startBottles, takeDown int) []string` main function that loops from startBottles downward for takeDown iterations, separating verses with empty strings
+## Summary
+Implemented a complete bowling game scoring engine with:
+- Error variables for invalid rolls, pin count exceeded, premature scoring, and game-over conditions
+- `Game` struct tracking rolls, roll count, frame count, and frame start index
+- `NewGame()` constructor
+- `Roll(pins int) error` with full validation for frames 1-9 and the 10th frame (strikes, spares, bonus rolls)
+- `Score() (int, error)` walking all frames with strike/spare bonus logic
+- Helper methods for frame state tracking and score computation
 
 ## Test Results
-All 7 tests pass.
+All 31 tests pass (10 Roll tests + 21 Score tests).
