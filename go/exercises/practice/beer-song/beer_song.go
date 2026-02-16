@@ -1,1 +1,50 @@
 package beer
+
+import (
+	"fmt"
+	"strings"
+)
+
+// Verse returns a single verse of 99 Bottles of Beer
+func Verse(n int) (string, error) {
+	if n < 0 || n > 99 {
+		return "", fmt.Errorf("%d is not a valid verse", n)
+	}
+	switch n {
+	case 0:
+		return "No more bottles of beer on the wall, no more bottles of beer.\nGo to the store and buy some more, 99 bottles of beer on the wall.\n", nil
+	case 1:
+		return "1 bottle of beer on the wall, 1 bottle of beer.\nTake it down and pass it around, no more bottles of beer on the wall.\n", nil
+	case 2:
+		return "2 bottles of beer on the wall, 2 bottles of beer.\nTake one down and pass it around, 1 bottle of beer on the wall.\n", nil
+	default:
+		return fmt.Sprintf("%d bottles of beer on the wall, %d bottles of beer.\nTake one down and pass it around, %d bottles of beer on the wall.\n", n, n, n-1), nil
+	}
+}
+
+// Verses returns multiple verses from start down to stop
+func Verses(start, stop int) (string, error) {
+	if start < 0 || start > 99 {
+		return "", fmt.Errorf("start value %d is not a valid verse", start)
+	}
+	if stop < 0 || stop > 99 {
+		return "", fmt.Errorf("stop value %d is not a valid verse", stop)
+	}
+	if start < stop {
+		return "", fmt.Errorf("start value %d is less than stop value %d", start, stop)
+	}
+
+	var b strings.Builder
+	for i := start; i >= stop; i-- {
+		v, _ := Verse(i)
+		b.WriteString(v)
+		b.WriteString("\n")
+	}
+	return b.String(), nil
+}
+
+// Song returns the entire song from 99 to 0
+func Song() string {
+	s, _ := Verses(99, 0)
+	return s
+}
