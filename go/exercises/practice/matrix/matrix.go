@@ -6,24 +6,17 @@ import (
 	"strings"
 )
 
-// Matrix represents a matrix of integers stored as rows of int slices.
 type Matrix [][]int
 
-// New creates a Matrix from a string where rows are separated by newlines
-// and values within a row are separated by whitespace.
 func New(s string) (Matrix, error) {
 	lines := strings.Split(s, "\n")
-	m := make(Matrix, 0, len(lines))
-	numCols := -1
-
-	for _, line := range lines {
+	m := make(Matrix, len(lines))
+	for i, line := range lines {
 		fields := strings.Fields(line)
 		if len(fields) == 0 {
 			return nil, errors.New("empty row")
 		}
-		if numCols == -1 {
-			numCols = len(fields)
-		} else if len(fields) != numCols {
+		if i > 0 && len(fields) != len(m[0]) {
 			return nil, errors.New("uneven rows")
 		}
 		row := make([]int, len(fields))
@@ -34,13 +27,11 @@ func New(s string) (Matrix, error) {
 			}
 			row[j] = val
 		}
-		m = append(m, row)
+		m[i] = row
 	}
-
 	return m, nil
 }
 
-// Rows returns a deep copy of the matrix rows.
 func (m Matrix) Rows() [][]int {
 	result := make([][]int, len(m))
 	for i, row := range m {
@@ -50,30 +41,24 @@ func (m Matrix) Rows() [][]int {
 	return result
 }
 
-// Cols returns the columns of the matrix as a deep copy.
 func (m Matrix) Cols() [][]int {
 	if len(m) == 0 {
 		return nil
 	}
-	numCols := len(m[0])
-	result := make([][]int, numCols)
-	for j := 0; j < numCols; j++ {
+	nCols := len(m[0])
+	result := make([][]int, nCols)
+	for c := 0; c < nCols; c++ {
 		col := make([]int, len(m))
-		for i := range m {
-			col[i] = m[i][j]
+		for r := 0; r < len(m); r++ {
+			col[r] = m[r][c]
 		}
-		result[j] = col
+		result[c] = col
 	}
 	return result
 }
 
-// Set sets the value at the given row and column. Returns true if the
-// indices are valid, false otherwise.
 func (m Matrix) Set(row, col, val int) bool {
-	if row < 0 || row >= len(m) {
-		return false
-	}
-	if col < 0 || col >= len(m[row]) {
+	if row < 0 || row >= len(m) || col < 0 || col >= len(m[0]) {
 		return false
 	}
 	m[row][col] = val
