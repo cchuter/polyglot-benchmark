@@ -2,8 +2,8 @@ package bookstore
 
 import "sort"
 
-// Cost calculates the total cost in cents for a basket of books,
-// applying the best possible group discounts.
+var groupCost = [...]int{0, 800, 1520, 2160, 2560, 3000}
+
 func Cost(books []int) int {
 	// Count frequency of each book
 	freq := make(map[int]int)
@@ -11,56 +11,62 @@ func Cost(books []int) int {
 		freq[b]++
 	}
 
-	// Extract counts and sort descending
+	// Extract frequencies and sort descending
 	counts := make([]int, 0, len(freq))
 	for _, c := range freq {
 		counts = append(counts, c)
 	}
 	sort.Sort(sort.Reverse(sort.IntSlice(counts)))
 
-	// Build groups greedily
+	// Build groups by peeling layers
 	var groups []int
-	for {
-		size := 0
-		for i := range counts {
-			if counts[i] > 0 {
-				counts[i]--
-				size++
+	for len(counts) > 0 {
+		groups = append(groups, len(counts))
+		// Decrease each frequency by 1, remove zeros
+		j := 0
+		for _, c := range counts {
+			if c > 1 {
+				counts[j] = c - 1
+				j++
 			}
 		}
-		if size == 0 {
-			break
-		}
-		groups = append(groups, size)
+		counts = counts[:j]
 	}
 
-	// Count groups of 5 and 3; redistribute to 4+4
-	fives, threes := 0, 0
+	// Optimize: convert 5+3 pairs into 4+4 pairs
+	n5, n3 := 0, 0
 	for _, g := range groups {
 		if g == 5 {
-			fives++
-		}
-		if g == 3 {
-			threes++
+			n5++
+		} else if g == 3 {
+			n3++
 		}
 	}
-	redistribute := min(fives, threes)
+	swaps := n5
+	if n3 < swaps {
+		swaps = n3
+	}
+	if swaps > 0 {
+		optimized := make([]int, 0, len(groups)+swaps)
+		s5, s3 := swaps, swaps
+		for _, g := range groups {
+			if g == 5 && s5 > 0 {
+				optimized = append(optimized, 4)
+				s5--
+			} else if g == 3 && s3 > 0 {
+				optimized = append(optimized, 4)
+				s3--
+			} else {
+				optimized = append(optimized, g)
+			}
+		}
+		groups = optimized
+	}
 
-	// Calculate cost using group cost table
-	groupCost := [6]int{0, 800, 1520, 2160, 2560, 3000}
+	// Sum costs
 	total := 0
 	for _, g := range groups {
 		total += groupCost[g]
 	}
-	// Apply redistribution: each 5+3 → 4+4 saves 40 cents
-	total -= redistribute * 40
-
 	return total
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }
