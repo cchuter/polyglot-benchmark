@@ -7,36 +7,36 @@ import (
 )
 
 func Encode(pt string) string {
-	// Normalize: lowercase and keep only alphanumeric characters
-	var normalized strings.Builder
+	// Step 1: Normalize - keep only alphanumeric, lowercase
+	var norm []byte
 	for _, ch := range pt {
 		if unicode.IsLetter(ch) || unicode.IsDigit(ch) {
-			normalized.WriteRune(unicode.ToLower(ch))
+			norm = append(norm, byte(unicode.ToLower(ch)))
 		}
 	}
-	s := normalized.String()
-	if len(s) == 0 {
+	n := len(norm)
+	if n == 0 {
 		return ""
 	}
 
-	// Compute dimensions
-	c := int(math.Ceil(math.Sqrt(float64(len(s)))))
-	r := int(math.Ceil(float64(len(s)) / float64(c)))
+	// Step 2: Compute rectangle dimensions
+	c := int(math.Ceil(math.Sqrt(float64(n))))
+	r := int(math.Ceil(float64(n) / float64(c)))
 
-	// Read down columns and build output chunks
-	chunks := make([]string, c)
+	// Step 3: Read columns and build output
+	var b strings.Builder
 	for col := 0; col < c; col++ {
-		var b strings.Builder
+		if col > 0 {
+			b.WriteByte(' ')
+		}
 		for row := 0; row < r; row++ {
-			pos := row*c + col
-			if pos < len(s) {
-				b.WriteByte(s[pos])
+			idx := row*c + col
+			if idx < n {
+				b.WriteByte(norm[idx])
 			} else {
 				b.WriteByte(' ')
 			}
 		}
-		chunks[col] = b.String()
 	}
-
-	return strings.Join(chunks, " ")
+	return b.String()
 }
