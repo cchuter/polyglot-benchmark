@@ -6,7 +6,6 @@ import (
 )
 
 var ErrRange = errors.New("value out of range")
-
 var ErrSyntax = errors.New("invalid syntax")
 
 type ParseError struct {
@@ -20,10 +19,8 @@ func (e *ParseError) Error() string {
 
 func ParseHex(s string) (n int64, err error) {
 	if len(s) < 1 {
-		err = ErrSyntax
-		goto Error
+		return 0, &ParseError{s, ErrSyntax}
 	}
-
 	for i := 0; i < len(s); i++ {
 		d := s[i]
 		var v byte
@@ -35,31 +32,19 @@ func ParseHex(s string) (n int64, err error) {
 		case 'A' <= d && d <= 'F':
 			v = d - 'A' + 10
 		default:
-			n = 0
-			err = ErrSyntax
-			goto Error
+			return 0, &ParseError{s, ErrSyntax}
 		}
-
 		if n >= math.MaxInt64/16+1 {
-			n = math.MaxInt64
-			err = ErrRange
-			goto Error
+			return 0, &ParseError{s, ErrRange}
 		}
-
 		n *= 16
 		n1 := n + int64(v)
-
 		if n1 < n {
-			n = math.MaxInt64
-			err = ErrRange
-			goto Error
+			return 0, &ParseError{s, ErrRange}
 		}
 		n = n1
 	}
 	return n, nil
-
-Error:
-	return n, &ParseError{s, err}
 }
 
 func HandleErrors(tests []string) []string {
