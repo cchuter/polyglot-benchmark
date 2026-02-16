@@ -2,156 +2,154 @@ package alphametics
 
 import (
 	"errors"
+	"sort"
 	"strings"
 )
 
-type colInfo struct {
-	letterCoeffs map[byte]int // letter -> net coefficient in this column
-	newLetters   []byte       // letters first encountered in this column
-}
-
-// Solve solves an alphametics puzzle and returns a mapping of letters to digits.
+// Solve finds digit assignments for an alphametics puzzle such that
+// the arithmetic equation holds, each letter maps to a unique digit,
+// and no multi-digit number has a leading zero.
 func Solve(puzzle string) (map[string]int, error) {
-	parts := strings.SplitN(puzzle, "==", 2)
-	if len(parts) != 2 {
-		return nil, errors.New("invalid puzzle format")
+	// Parse: split on whitespace, discard "+" and "=="
+	tokens := strings.Fields(puzzle)
+	var words []string
+	for _, t := range tokens {
+		if t != "+" && t != "==" {
+			words = append(words, t)
+		}
+	}
+	if len(words) < 2 {
+		return nil, errors.New("invalid puzzle")
 	}
 
-	lhsStr := strings.TrimSpace(parts[0])
-	rhsWord := strings.TrimSpace(parts[1])
-
-	var addends []string
-	for _, w := range strings.Split(lhsStr, "+") {
-		addends = append(addends, strings.TrimSpace(w))
-	}
-
-	// Collect all words (addends + result) and unique letters.
-	allWords := make([]string, len(addends)+1)
-	copy(allWords, addends)
-	allWords[len(addends)] = rhsWord
-
-	var leading [256]bool
-	var seen [256]bool
-	var letters []byte
-
-	for _, word := range allWords {
+	// Compute letter coefficients.
+	// Addends (all words except last) contribute positively,
+	// result word (last) contributes negatively.
+	// A correct assignment makes the total sum zero.
+	coeffMap := make(map[byte]int)
+	leading := make(map[byte]bool)
+	for i, word := range words {
+		sign := 1
+		if i == len(words)-1 {
+			sign = -1
+		}
+		place := 1
+		for j := len(word) - 1; j >= 0; j-- {
+			coeffMap[word[j]] += sign * place
+			place *= 10
+		}
 		if len(word) > 1 {
 			leading[word[0]] = true
 		}
-		for i := 0; i < len(word); i++ {
-			c := word[i]
-			if !seen[c] {
-				seen[c] = true
-				letters = append(letters, c)
+	}
+
+	// Sort letters by |coefficient| descending for better pruning
+	letters := make([]byte, 0, len(coeffMap))
+	for ch := range coeffMap {
+		letters = append(letters, ch)
+	}
+	sort.Slice(letters, func(i, j int) bool {
+		ai := coeffMap[letters[i]]
+		if ai < 0 {
+			ai = -ai
+		}
+		aj := coeffMap[letters[j]]
+		if aj < 0 {
+			aj = -aj
+		}
+		return ai > aj
+	})
+
+	n := len(letters)
+	coeff := make([]int, n)
+	isLeading := make([]bool, n)
+	for i, ch := range letters {
+		coeff[i] = coeffMap[ch]
+		isLeading[i] = leading[ch]
+	}
+
+	// Backtracking solver with bounds pruning
+	assignment := make([]int, n)
+
+	var solve func(idx, sum, used int) bool
+	solve = func(idx, sum, used int) bool {
+		if idx == n {
+			return sum == 0
+		}
+		for d := 0; d <= 9; d++ {
+			if used&(1<<d) != 0 {
+				continue
 			}
-		}
-	}
+			if d == 0 && isLeading[idx] {
+				continue
+			}
+			newSum := sum + coeff[idx]*d
+			newUsed := used | (1 << d)
 
-	// Build columns right-to-left. For each column position, compute a
-	// coefficient for each letter: +1 for each LHS occurrence, -1 for RHS.
-	maxLen := len(rhsWord)
-	for _, w := range addends {
-		if len(w) > maxLen {
-			maxLen = len(w)
-		}
-	}
-	// Add one extra column for potential carry overflow.
-	numCols := maxLen + 1
-
-	assignedSet := make(map[byte]bool)
-	cols := make([]colInfo, numCols)
-
-	for c := 0; c < numCols; c++ {
-		cols[c].letterCoeffs = make(map[byte]int)
-	}
-
-	// Process columns right-to-left, tracking which letters are new per column.
-	for col := 0; col < numCols; col++ {
-		newInCol := make(map[byte]bool)
-		// LHS addends.
-		for _, w := range addends {
-			idx := len(w) - 1 - col
-			if idx >= 0 {
-				ch := w[idx]
-				cols[col].letterCoeffs[ch]++
-				if !assignedSet[ch] {
-					newInCol[ch] = true
+			// Bounds pruning: check if remaining letters can bring sum to 0
+			if idx < n-1 {
+				lo, hi := 0, 0
+				feasible := true
+				for k := idx + 1; k < n; k++ {
+					minD, maxD := availMinMax(newUsed, isLeading[k])
+					if minD < 0 {
+						feasible = false
+						break
+					}
+					c := coeff[k]
+					if c > 0 {
+						lo += c * minD
+						hi += c * maxD
+					} else {
+						lo += c * maxD
+						hi += c * minD
+					}
+				}
+				if !feasible || newSum+lo > 0 || newSum+hi < 0 {
+					continue
 				}
 			}
-		}
-		// RHS (result) word.
-		idx := len(rhsWord) - 1 - col
-		if idx >= 0 {
-			ch := rhsWord[idx]
-			cols[col].letterCoeffs[ch]--
-			if !assignedSet[ch] {
-				newInCol[ch] = true
-			}
-		}
 
-		for ch := range newInCol {
-			cols[col].newLetters = append(cols[col].newLetters, ch)
-			assignedSet[ch] = true
-		}
-	}
-
-	// Solver state.
-	var assignment [256]int
-	for i := range assignment {
-		assignment[i] = -1
-	}
-	var used [10]bool
-
-	// Recursive solver: assign new letters per column, then check constraint.
-	var solveCol func(col, carry int) bool
-	var assign func(col, carry, idx int) bool
-
-	solveCol = func(col, carry int) bool {
-		if col == numCols {
-			return carry == 0
-		}
-		return assign(col, carry, 0)
-	}
-
-	assign = func(col, carry, idx int) bool {
-		if idx == len(cols[col].newLetters) {
-			// All letters in this column assigned; check column constraint.
-			colSum := carry
-			for ch, coeff := range cols[col].letterCoeffs {
-				colSum += coeff * assignment[ch]
-			}
-			if colSum < 0 || colSum%10 != 0 {
-				return false
-			}
-			return solveCol(col+1, colSum/10)
-		}
-
-		ch := cols[col].newLetters[idx]
-		start := 0
-		if leading[ch] {
-			start = 1
-		}
-		for d := start; d <= 9; d++ {
-			if !used[d] {
-				assignment[ch] = d
-				used[d] = true
-				if assign(col, carry, idx+1) {
-					return true
-				}
-				used[d] = false
-				assignment[ch] = -1
+			assignment[idx] = d
+			if solve(idx+1, newSum, newUsed) {
+				return true
 			}
 		}
 		return false
 	}
 
-	if !solveCol(0, 0) {
+	if !solve(0, 0, 0) {
 		return nil, errors.New("no solution found")
 	}
 
-	result := make(map[string]int)
-	for _, ch := range letters {
-		result[string(ch)] = assignment[ch]
+	result := make(map[string]int, n)
+	for i, ch := range letters {
+		result[string(ch)] = assignment[i]
 	}
 	return result, nil
+}
+
+// availMinMax returns the smallest and largest available digits given a
+// used-digit bitmask. If isLeading is true, digit 0 is excluded.
+// Returns (-1, -1) if no digit is available.
+func availMinMax(used int, isLeading bool) (int, int) {
+	start := 0
+	if isLeading {
+		start = 1
+	}
+	minD := -1
+	for d := start; d <= 9; d++ {
+		if used&(1<<d) == 0 {
+			minD = d
+			break
+		}
+	}
+	maxD := -1
+	for d := 9; d >= start; d-- {
+		if used&(1<<d) == 0 {
+			maxD = d
+			break
+		}
+	}
+	return minD, maxD
 }
