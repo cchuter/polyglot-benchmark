@@ -5,24 +5,19 @@ import (
 	"math"
 )
 
-// ErrRange indicates that a value is out of range for the target type.
 var ErrRange = errors.New("value out of range")
 
-// ErrSyntax indicates that a value does not have the right syntax for the target type.
 var ErrSyntax = errors.New("invalid syntax")
 
-// A ParseError records a failed conversion.
 type ParseError struct {
-	Num string // the input
-	Err error  // the reason the conversion failed (ErrRange, ErrSyntax)
+	Num string
+	Err error
 }
 
 func (e *ParseError) Error() string {
 	return "hexadecimal.ParseHex: parsing \"" + e.Num + "\": " + e.Err.Error()
 }
 
-// ParseHex interprets a string s in base 16 and returns the corresponding
-// value n.
 func ParseHex(s string) (n int64, err error) {
 	if len(s) < 1 {
 		err = ErrSyntax
@@ -46,7 +41,6 @@ func ParseHex(s string) (n int64, err error) {
 		}
 
 		if n >= math.MaxInt64/16+1 {
-			// n*16 overflows
 			n = math.MaxInt64
 			err = ErrRange
 			goto Error
@@ -56,7 +50,6 @@ func ParseHex(s string) (n int64, err error) {
 		n1 := n + int64(v)
 
 		if n1 < n {
-			// n+v overflows
 			n = math.MaxInt64
 			err = ErrRange
 			goto Error
@@ -69,8 +62,6 @@ Error:
 	return n, &ParseError{s, err}
 }
 
-// HandleErrors takes a list of inputs for ParseHex and returns a matching list
-// of error cases: "none", "syntax", or "range".
 func HandleErrors(tests []string) []string {
 	e := make([]string, len(tests))
 	for i, s := range tests {
