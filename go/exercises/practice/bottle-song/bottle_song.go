@@ -1,57 +1,40 @@
 package bottlesong
 
-import (
-	"fmt"
-	"strings"
-)
+import "strings"
+
+var numberWords = []string{
+	"no", "one", "two", "three", "four",
+	"five", "six", "seven", "eight", "nine", "ten",
+}
 
 func Recite(startBottles, takeDown int) []string {
-	verses := []string{}
-	for i := startBottles; i > startBottles-takeDown; i-- {
-		verses = append(verses, verse(i)...)
-		if i > startBottles-takeDown+1 {
-			verses = append(verses, "")
+	var result []string
+	for i := 0; i < takeDown; i++ {
+		if i > 0 {
+			result = append(result, "")
 		}
+		current := startBottles - i
+		next := current - 1
+		result = append(result,
+			capitalize(numberWords[current])+" green "+plural(current)+" hanging on the wall,",
+			capitalize(numberWords[current])+" green "+plural(current)+" hanging on the wall,",
+			"And if one green bottle should accidentally fall,",
+			"There'll be "+numberWords[next]+" green "+plural(next)+" hanging on the wall.",
+		)
 	}
-	return verses
+	return result
 }
 
-var numberToWord = map[int]string{
-	0:  "no",
-	1:  "one",
-	2:  "two",
-	3:  "three",
-	4:  "four",
-	5:  "five",
-	6:  "six",
-	7:  "seven",
-	8:  "eight",
-	9:  "nine",
-	10: "ten",
+func plural(n int) string {
+	if n == 1 {
+		return "bottle"
+	}
+	return "bottles"
 }
 
-func verse(n int) []string {
-	switch {
-	case n == 1:
-		return []string{
-			"One green bottle hanging on the wall,",
-			"One green bottle hanging on the wall,",
-			"And if one green bottle should accidentally fall,",
-			"There'll be no green bottles hanging on the wall.",
-		}
-	case n == 2:
-		return []string{
-			"Two green bottles hanging on the wall,",
-			"Two green bottles hanging on the wall,",
-			"And if one green bottle should accidentally fall,",
-			"There'll be one green bottle hanging on the wall.",
-		}
-	default:
-		return []string{
-			fmt.Sprintf("%s green bottles hanging on the wall,", strings.Title(numberToWord[n])),
-			fmt.Sprintf("%s green bottles hanging on the wall,", strings.Title(numberToWord[n])),
-			"And if one green bottle should accidentally fall,",
-			fmt.Sprintf("There'll be %s green bottles hanging on the wall.", numberToWord[n-1]),
-		}
+func capitalize(s string) string {
+	if len(s) == 0 {
+		return s
 	}
+	return strings.ToUpper(s[:1]) + s[1:]
 }

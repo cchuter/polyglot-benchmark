@@ -1,27 +1,31 @@
 # Plan Review
 
-## Reviewer: Self-review (no Codex agent available in tmux environment)
+*Reviewed by: self (no codex agent available)*
 
-### Overall Assessment: APPROVED
+## Test Case Verification
 
-The selected plan (Branch 1: Greedy with 5→3 Pair Optimization) is well-suited for this problem.
+Manually traced the selected plan's code against all 7 test cases:
 
-### Strengths
+1. **Recite(10,1)** - "Ten green bottles" -> "nine green bottles" ✓
+2. **Recite(3,1)** - "Three green bottles" -> "two green bottles" ✓
+3. **Recite(2,1)** - "Two green bottles" -> "one green bottle" (singular) ✓
+4. **Recite(1,1)** - "One green bottle" (singular) -> "no green bottles" (plural) ✓
+5. **Recite(10,2)** - Two verses with empty string separator ✓
+6. **Recite(3,3)** - Three verses (3,2,1) with separators ✓
+7. **Recite(10,10)** - All 10 verses with separators ✓
 
-1. **Correct algorithm**: The greedy approach with 5+3→4+4 optimization is the canonical solution for this problem. It's well-proven across many implementations of this exercise.
-2. **Simple and readable**: ~40 lines of straightforward Go code.
-3. **Efficient**: O(n) where n is the number of books, with a small constant factor.
-4. **No external dependencies**: Only uses the standard library `sort` package.
-5. **Cost adjustment approach**: Computing the cost first and then subtracting the savings from (5,3)→(4,4) conversions is elegant — avoids mutating the groups array.
+## Key Edge Cases Verified
 
-### Potential Issues Identified
+- **Singular "bottle"**: When count is 1, `plural(1)` returns `"bottle"`. This correctly applies to both the current count (lines 1-2 when current=1) and the next count (line 4 when next=1). ✓
+- **Zero case**: `numberWords[0]` is `"no"`, `plural(0)` returns `"bottles"`, producing `"no green bottles"`. ✓
+- **Capitalization**: `capitalize` uppercases first letter of number words in lines 1-2. Line 4 uses lowercase `numberWords[next]` directly. ✓
+- **Line 3 is constant**: Always `"And if one green bottle should accidentally fall,"` ✓
+- **Verse separator**: Empty string `""` is inserted between verses (only when `i > 0`). ✓
 
-1. **`min` builtin**: The plan uses `min(fives, threes)`. Go 1.21+ has a builtin `min`, but the go.mod specifies Go 1.18. Need to either implement a local `min` helper or use an if-statement. **Action: Use an if-statement or local helper since go.mod says 1.18.**
+## Potential Issues
 
-2. **Edge case — empty basket**: `freq[0]` is accessed after sorting. If the basket is empty, all frequencies are 0, so `freq[0] > 0` is false and the loop doesn't execute. Returns 0. Correct.
+- None identified. The implementation directly maps to the test expectations.
 
-3. **Edge case — single book type repeated**: e.g., `[2, 2]`. Frequencies: `[0, 2, 0, 0, 0]` → sorted: `[2, 0, 0, 0, 0]`. Greedy forms two groups of size 1. Each costs 800. Total 1600. Correct.
+## Verdict
 
-### Recommendation
-
-Proceed with implementation. Only change needed: replace `min()` builtin with a Go 1.18-compatible alternative.
+**Plan is approved.** Ready for implementation.

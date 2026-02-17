@@ -1,18 +1,23 @@
 # Implementation Context
 
-## Key Decisions
-- **Algorithm**: Greedy grouping with 5+3→4+4 optimization (Branch 1 from plan)
-- **Go version compatibility**: Avoided `min()` builtin (Go 1.21+); used if-statement for Go 1.18 compat
-- **Cost adjustment approach**: Rather than rebuilding the groups array, calculate initial cost and subtract savings (40 cents per 5+3→4+4 conversion)
-
 ## Files Modified
-- `go/exercises/practice/book-store/book_store.go` — sole implementation file
+
+- `go/exercises/practice/bottle-song/bottle_song.go` — Full implementation of `Recite` function
+
+## Architecture
+
+- `numberWords []string` — Lookup table mapping int 0-10 to lowercase English words
+- `Recite(startBottles, takeDown int) []string` — Main exported function
+- `plural(n int) string` — Returns "bottle" or "bottles"
+- `capitalize(s string) string` — Uppercases first character
 
 ## Test Results
-- 18/18 tests pass
+
+- 7/7 tests pass
 - `go vet` clean
 - No external dependencies
 
 ## Branch
-- Feature branch: `issue-237`
-- Pushed to origin
+
+- Feature branch: `issue-239`
+- Base branch: `bench/polyglot-go-bottle-song`

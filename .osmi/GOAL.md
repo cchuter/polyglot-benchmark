@@ -1,40 +1,29 @@
-# Goal: Implement Book Store Discount Calculator
+# Goal: Implement bottle-song Exercise (Go)
 
 ## Problem Statement
 
-Implement the `Cost` function for the book-store exercise. A bookshop sells 5 different books at $8 each, with discounts for buying different titles together:
-
-- 1 book: no discount (800 cents)
-- 2 different books: 5% discount (1520 cents)
-- 3 different books: 10% discount (2160 cents)
-- 4 different books: 20% discount (2560 cents)
-- 5 different books: 25% discount (3000 cents)
-
-The key challenge is finding the optimal grouping of books to minimize the total cost. A greedy approach (always making the largest group) does not always yield the minimum cost. For example, two groups of 4 (5120 cents) is cheaper than a group of 5 + a group of 3 (5160 cents).
-
-## Function Signature
-
-```go
-func Cost(books []int) int
-```
-
-- Input: a slice of integers representing book IDs (1-5)
-- Output: the total cost in cents after applying the best possible discounts
+Implement the `Recite` function in the `bottlesong` package that generates lyrics for the "Ten Green Bottles" children's song. The function takes a starting bottle count and the number of verses to produce, returning a slice of strings where each string is one line of the song.
 
 ## Acceptance Criteria
 
-1. `Cost` returns 0 for an empty basket
-2. `Cost` returns 800 for a single book
-3. `Cost` returns 1600 for two copies of the same book (no discount)
-4. `Cost` correctly applies discount tiers for 2, 3, 4, and 5 different books
-5. `Cost` finds the optimal grouping to minimize total cost (e.g., two groups of 4 are cheaper than groups of 5 and 3)
-6. All 18 test cases in `cases_test.go` pass
-7. `go vet ./...` passes with no issues
-8. Code is in `book_store.go` in package `bookstore`
+1. `Recite(startBottles, takeDown int) []string` is exported and returns the correct lyrics.
+2. Each verse has 4 lines:
+   - `"{N} green bottle(s) hanging on the wall,"`
+   - `"{N} green bottle(s) hanging on the wall,"`
+   - `"And if one green bottle should accidentally fall,"`
+   - `"There'll be {N-1} green bottle(s) hanging on the wall."`
+3. Numbers are written as capitalized English words (e.g., "Ten", "Nine") in lines 1, 2, and 4.
+4. Singular "bottle" is used when the count is 1; plural "bottles" otherwise, including 0 ("no green bottles").
+5. When the remaining count is 0, the text reads "no green bottles".
+6. Multiple verses are separated by a single empty string element (`""`).
+7. The third line always says "one green bottle" (lowercase, singular) regardless of current count.
+8. All 7 test cases in `cases_test.go` must pass.
+9. `go vet` reports no issues.
 
 ## Key Constraints
 
-- Only integer arithmetic is needed (costs are in cents)
-- Books are identified by integers 1-5
-- The solution must handle baskets with duplicate books
-- The optimization problem requires considering all valid groupings
+- The solution must be in a single file: `bottle_song.go`.
+- Package name must be `bottlesong`.
+- No external dependencies (go.mod specifies `go 1.18` only).
+- Number words needed: "no", "one" through "ten" (numbers 0-10).
+- First letter of the number word is capitalized only in lines 1, 2, and 4 (the verse lines), not in line 3.

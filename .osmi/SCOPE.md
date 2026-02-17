@@ -1,22 +1,25 @@
-# Scope: Book Store Exercise
+# Scope: bottle-song Exercise
 
 ## In Scope
 
-- Implement the `Cost` function in `go/exercises/practice/book-store/book_store.go`
-- The function must calculate minimum cost for a basket of books with optimal discount grouping
-- All 18 test cases must pass
-- Code must pass `go vet`
+- Implement the `Recite(startBottles, takeDown int) []string` function in `bottle_song.go`.
+- Handle number-to-word conversion for integers 0-10.
+- Handle singular/plural for "bottle"/"bottles".
+- Handle capitalization of number words at the start of verse lines.
+- Handle "no green bottles" for the zero case.
+- Separate verses with empty string elements.
+- Pass all existing test cases in `bottle_song_test.go` and `cases_test.go`.
 
 ## Out of Scope
 
-- Modifying test files (`book_store_test.go`, `cases_test.go`)
-- Modifying `go.mod`
-- Adding new packages or dependencies
-- Changes to any other exercises
-- Changes to `.meta/` or `.docs/` directories
+- Modifying test files (`bottle_song_test.go`, `cases_test.go`).
+- Modifying `go.mod`.
+- Handling numbers outside 0-10.
+- Error handling for invalid inputs (not tested).
+- Any changes to other exercises or languages.
 
 ## Dependencies
 
-- Go 1.18+ (as specified in go.mod)
-- No external packages; standard library only
-- No dependencies on other exercises or code in the repository
+- No external dependencies.
+- Standard library only (`strings`, `fmt` if needed).
+- Must compile with Go 1.18+.
