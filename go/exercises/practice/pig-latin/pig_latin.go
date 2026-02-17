@@ -2,40 +2,37 @@ package piglatin
 
 import "strings"
 
-// Sentence translates a sentence from English to Pig Latin.
-func Sentence(sentence string) string {
-	words := strings.Fields(sentence)
-	for i, w := range words {
-		words[i] = translateWord(w)
+var vowels = map[byte]bool{'a': true, 'e': true, 'i': true, 'o': true, 'u': true}
+var specials = map[string]bool{"xr": true, "yt": true}
+var vowelsY = map[byte]bool{'a': true, 'e': true, 'i': true, 'o': true, 'u': true, 'y': true}
+
+// Sentence translates a phrase from English to Pig Latin.
+func Sentence(phrase string) string {
+	words := strings.Fields(phrase)
+	for i, word := range words {
+		words[i] = translateWord(word)
 	}
 	return strings.Join(words, " ")
 }
 
 func translateWord(word string) string {
 	// Rule 1: starts with vowel, "xr", or "yt"
-	if isVowel(word[0]) || strings.HasPrefix(word, "xr") || strings.HasPrefix(word, "yt") {
+	if vowels[word[0]] || (len(word) >= 2 && specials[word[:2]]) {
 		return word + "ay"
 	}
 
-	// Scan consonant cluster to find the split point
-	for i := 0; i < len(word); i++ {
-		// Rule 3: consonant(s) + "qu"
-		if word[i] == 'q' && i+1 < len(word) && word[i+1] == 'u' {
-			return word[i+2:] + word[:i+2] + "ay"
-		}
-		// Rule 4: consonant(s) + "y" (y not at position 0)
-		if word[i] == 'y' && i > 0 {
-			return word[i:] + word[:i] + "ay"
-		}
-		// Rule 2: found a vowel, split here
-		if isVowel(word[i]) {
-			return word[i:] + word[:i] + "ay"
+	// Scan consonant cluster to find split point
+	// Handles Rule 2 (consonants), Rule 3 (qu), and Rule 4 (y as vowel)
+	for pos := 1; pos < len(word); pos++ {
+		letter := word[pos]
+		if vowelsY[letter] {
+			// Rule 3: if we hit 'u' preceded by 'q', include 'u' in consonant prefix
+			if letter == 'u' && word[pos-1] == 'q' {
+				pos++
+			}
+			return word[pos:] + word[:pos] + "ay"
 		}
 	}
-	// Fallback: all consonants
-	return word + "ay"
-}
 
-func isVowel(b byte) bool {
-	return b == 'a' || b == 'e' || b == 'i' || b == 'o' || b == 'u'
+	return word + "ay"
 }
