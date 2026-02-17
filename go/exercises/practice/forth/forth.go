@@ -1,3 +1,4 @@
+// Package forth implements a tiny subset of the Forth language.
 package forth
 
 import (
@@ -30,13 +31,6 @@ type operatorTyp struct {
 	id operatorID
 }
 
-var (
-	errNotEnoughOperands = errors.New("not enough operands")
-	errDivideByZero      = errors.New("attempt to divide by zero")
-	errEmptyUserDef      = errors.New("empty user definition")
-	errInvalidUserDef    = errors.New("invalid user def word")
-)
-
 func Forth(input []string) ([]int, error) {
 	if len(input) == 0 {
 		return []int{}, nil
@@ -44,14 +38,14 @@ func Forth(input []string) ([]int, error) {
 
 	stack := make([]int, 0, 8)
 	userDefs := make(map[string][]operatorTyp, 8)
-
 	for _, phrase := range input {
 		opList, err := parse(phrase, userDefs)
 		if err != nil {
 			return nil, err
 		}
 		for _, opr := range opList {
-			if err := opr.fn(&stack); err != nil {
+			err = opr.fn(&stack)
+			if err != nil {
 				return nil, err
 			}
 		}
@@ -66,22 +60,18 @@ func parse(phrase string, userDefs map[string][]operatorTyp) ([]operatorTyp, err
 	})
 
 	var oplist []operatorTyp
-
 	for t := 0; t < len(words); t++ {
 		w := strings.ToUpper(words[t])
-
 		if udef, ok := userDefs[w]; ok {
-			// User-defined word (checked before builtins for override support).
 			oplist = append(oplist, udef...)
 		} else if op, ok := builtinOps[w]; ok {
 			if op.id == opUserDef {
-				// Parse user word definition.
 				t++
 				if t >= len(words)-2 {
 					return nil, errEmptyUserDef
 				}
 				userword := strings.ToUpper(words[t])
-				if _, err := strconv.Atoi(userword); err == nil {
+				if _, numerr := strconv.Atoi(userword); numerr == nil {
 					return nil, errInvalidUserDef
 				}
 				t++
@@ -105,10 +95,7 @@ func parse(phrase string, userDefs map[string][]operatorTyp) ([]operatorTyp, err
 				oplist = append(oplist, op)
 			}
 		} else {
-			// Number literal — fresh variable for closure capture.
-			var x int
-			var err error
-			x, err = strconv.Atoi(w)
+			x, err := strconv.Atoi(w)
 			if err != nil {
 				return nil, err
 			}
@@ -121,7 +108,6 @@ func parse(phrase string, userDefs map[string][]operatorTyp) ([]operatorTyp, err
 			})
 		}
 	}
-
 	return oplist, nil
 }
 
@@ -139,13 +125,13 @@ var builtinOps = map[string]operatorTyp{
 }
 
 func pop(stack *[]int) (int, error) {
-	n := len(*stack)
-	if n == 0 {
-		return 0, errNotEnoughOperands
+	slen := len(*stack)
+	if slen >= 1 {
+		v := (*stack)[slen-1]
+		*stack = (*stack)[:slen-1]
+		return v, nil
 	}
-	v := (*stack)[n-1]
-	*stack = (*stack)[:n-1]
-	return v, nil
+	return 0, errNotEnoughOperands
 }
 
 func pop2(stack *[]int) (int, int, error) {
@@ -195,28 +181,18 @@ func divide(stack *[]int) error {
 }
 
 func dup(stack *[]int) error {
-	v, err := pop(stack)
+	v1, err := pop(stack)
 	if err != nil {
 		return err
 	}
-	push(stack, v)
-	push(stack, v)
+	push(stack, v1)
+	push(stack, v1)
 	return nil
 }
 
 func drop(stack *[]int) error {
 	_, err := pop(stack)
 	return err
-}
-
-func swap(stack *[]int) error {
-	v1, v2, err := pop2(stack)
-	if err != nil {
-		return err
-	}
-	push(stack, v1)
-	push(stack, v2)
-	return nil
 }
 
 func over(stack *[]int) error {
@@ -229,3 +205,18 @@ func over(stack *[]int) error {
 	push(stack, v2)
 	return nil
 }
+
+func swap(stack *[]int) error {
+	v1, v2, err := pop2(stack)
+	if err != nil {
+		return err
+	}
+	push(stack, v1)
+	push(stack, v2)
+	return nil
+}
+
+var errNotEnoughOperands = errors.New("not enough operands")
+var errDivideByZero = errors.New("attempt to divide by zero")
+var errEmptyUserDef = errors.New("empty user definition")
+var errInvalidUserDef = errors.New("invalid user def word")
