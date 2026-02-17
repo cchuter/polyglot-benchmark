@@ -1,40 +1,38 @@
 package bottlesong
 
-import "strings"
-
-var numberWords = []string{
-	"no", "one", "two", "three", "four",
-	"five", "six", "seven", "eight", "nine", "ten",
-}
+import "fmt"
 
 func Recite(startBottles, takeDown int) []string {
 	var result []string
 	for i := 0; i < takeDown; i++ {
+		n := startBottles - i
 		if i > 0 {
 			result = append(result, "")
 		}
-		current := startBottles - i
-		next := current - 1
+		word := Title(numberWord(n))
+		nextWord := numberWord(n - 1)
 		result = append(result,
-			capitalize(numberWords[current])+" green "+plural(current)+" hanging on the wall,",
-			capitalize(numberWords[current])+" green "+plural(current)+" hanging on the wall,",
+			fmt.Sprintf("%s green %s hanging on the wall,", word, bottleStr(n)),
+			fmt.Sprintf("%s green %s hanging on the wall,", word, bottleStr(n)),
 			"And if one green bottle should accidentally fall,",
-			"There'll be "+numberWords[next]+" green "+plural(next)+" hanging on the wall.",
+			fmt.Sprintf("There'll be %s green %s hanging on the wall.", nextWord, bottleStr(n-1)),
 		)
 	}
 	return result
 }
 
-func plural(n int) string {
+var numbers = []string{
+	"no", "one", "two", "three", "four", "five",
+	"six", "seven", "eight", "nine", "ten",
+}
+
+func numberWord(n int) string {
+	return numbers[n]
+}
+
+func bottleStr(n int) string {
 	if n == 1 {
 		return "bottle"
 	}
 	return "bottles"
-}
-
-func capitalize(s string) string {
-	if len(s) == 0 {
-		return s
-	}
-	return strings.ToUpper(s[:1]) + s[1:]
 }
