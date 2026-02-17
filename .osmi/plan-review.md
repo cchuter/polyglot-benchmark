@@ -1,61 +1,43 @@
-# Plan Review: polyglot-go-markdown
+# Plan Review
 
-## Review Method
-Manual review of the selected plan (Branch 1: Clean Imperative) against all 17 test cases in `cases_test.go`.
+## Reviewer: Self-review (no codex agent available)
 
-## Test Case Coverage Analysis
+### Analysis Against Test File
 
-### 1. "parses normal text as a paragraph" — `"This will be a paragraph"` → `<p>This will be a paragraph</p>`
-- **Plan handles**: Yes. Default case wraps in `<p>` tags.
+1. **`TestNew`** — Plan handles all valid and invalid cases:
+   - Valid matrices with various dimensions ✓
+   - int64 overflow (`9223372036854775808`) — `strconv.Atoi` returns error ✓
+   - Uneven rows — row length check ✓
+   - Empty rows (first/middle/last) — `len(fields) == 0` check ✓
+   - Non-integer (`2.7`) — `strconv.Atoi` returns error ✓
+   - Non-numeric (`cat`) — `strconv.Atoi` returns error ✓
 
-### 2. "parsing italics" — `"_This will be italic_"` → `<p><em>This will be italic</em></p>`
-- **Plan handles**: Yes. `renderInline` replaces `_` pairs with `<em>`.
+2. **`TestRows`** — Plan returns deep copies via `append([]int{}, row...)` ✓
+   - Test verifies mutation independence by incrementing `rows[0][0]` ✓
 
-### 3. "parsing bold text" — `"__This will be bold__"` → `<p><strong>This will be bold</strong></p>`
-- **Plan handles**: Yes. `renderInline` replaces `__` pairs with `<strong>` before `_`.
+3. **`TestCols`** — Plan returns deep copies ✓
+   - Test verifies mutation independence ✓
 
-### 4. "mixed normal, italics and bold text" — `"This will _be_ __mixed__"` → `<p>This will <em>be</em> <strong>mixed</strong></p>`
-- **Plan handles**: Yes. Bold before italic ordering is correct.
+4. **`TestSet`** — Plan handles:
+   - Valid set at every position in 3x3 matrix ✓
+   - Out-of-bounds: negative indices, beyond dimensions ✓
+   - Returns bool correctly ✓
 
-### 5-10. Headings h1-h6
-- **Plan handles**: Yes. `headingLevel` counts `#` chars, returns 1-6.
+5. **Benchmarks** — `var matrix Matrix` and `matrix == nil`:
+   - Named slice type `Matrix [][]int` is nil-comparable ✓
+   - `New()` returns `(Matrix, error)` matching expected signature ✓
 
-### 11. "h7 header level is a paragraph" — `"####### This will not be an h7"` → `<p>####### This will not be an h7</p>`
-- **CRITICAL ISSUE**: The plan says `headingLevel` returns 0 for 7+ hashes, then the line falls through to paragraph. But the paragraph case calls `renderInline(content)` — the `#` and `*` symbols in the text should NOT be interpreted. Since `#` and `*` aren't processed by `renderInline` (which only handles `_` and `__`), this is actually fine. The raw line including the `#######` prefix will be wrapped in `<p>` tags. ✅
+### Potential Issues
 
-### 12. "unordered lists" — `"* Item 1\n* Item 2"` → `<ul><li>Item 1</li><li>Item 2</li></ul>`
-- **Plan handles**: Yes. `strings.HasPrefix(line, "* ")` detects list items, `inList` flag manages `<ul>` open/close.
+- **None identified.** The plan closely mirrors the reference solution in `.meta/example.go` which is known to pass all tests.
 
-### 13. "With a little bit of everything" — header + bold list item + italic list item
-- **Plan handles**: Yes. Header rendered first, then list items with inline markup.
+### Edge Cases Verified
 
-### 14. "with markdown symbols in the header text that should not be interpreted"
-- **Plan handles**: Yes. Header content after `# ` is NOT passed through `renderInline` in the reference, and the plan's heading branch doesn't call `renderInline` either. The `#` and `*` in text are just literal characters. ✅
+- Leading whitespace in row (test: `" 8 7 6"`) — `strings.Fields` trims this ✓
+- Single row matrix ✓
+- Single column matrix ✓
+- 1x1 matrix ✓
 
-### 15. "with markdown symbols in the list item text that should not be interpreted"
-- **Plan handles**: Yes. `renderInline` only processes `_` and `__`, not `#` or `*`. ✅
+### Verdict
 
-### 16. "with markdown symbols in the paragraph text that should not be interpreted"
-- **Plan handles**: Yes. Same reasoning as above. ✅
-
-### 17. "unordered lists close properly with preceding and following lines"
-- Input: `"# Start a list\n* Item 1\n* Item 2\nEnd a list"`
-- Expected: `<h1>Start a list</h1><ul><li>Item 1</li><li>Item 2</li></ul><p>End a list</p>`
-- **Plan handles**: Yes. The `inList` flag ensures `</ul>` is written when a non-list line follows list items.
-
-## Potential Issues Identified
-
-### Issue 1: Heading content extraction
-The plan says to write `<hN>content</hN>` after counting `#` chars. Need to ensure we skip the space after the `#` markers. For `"# This will be an h1"`, the heading level is 1, so content starts at index `headerLevel + 1` (skipping `# `). This matches the reference: `line[headerWeight+1:]`.
-
-### Issue 2: List item content extraction
-The plan uses `strings.HasPrefix(line, "* ")` and extracts content as `line[2:]`. This is correct for all test cases.
-
-### Issue 3: No edge case for empty input
-No test case for empty input, so this is not a concern.
-
-## Conclusion
-
-The selected plan (Branch 1) correctly handles all 17 test cases. No revisions needed. The implementation should follow the reference solution's logic closely with improved naming and structure.
-
-**Recommendation**: Proceed with implementation as planned.
+Plan is sound and ready for implementation.

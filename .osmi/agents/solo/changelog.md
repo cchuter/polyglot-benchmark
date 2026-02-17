@@ -1,22 +1,22 @@
 # Solo Agent Change Log
 
-## Change 1: Implement markdown.go
+## Changes Made
 
-**File**: `go/exercises/practice/markdown/markdown.go`
-**Action**: Wrote full solution (73 lines)
+### `go/exercises/practice/matrix/matrix.go`
+- **Added**: `Matrix` type definition as `[][]int` (named slice)
+- **Added**: `New(s string) (Matrix, error)` — parses newline-separated, space-delimited string into matrix with full validation
+- **Added**: `Rows() [][]int` — returns independent copy of row data
+- **Added**: `Cols() [][]int` — returns transposed column data as independent copy
+- **Added**: `Set(row, col, val int) bool` — sets element with bounds checking
 
-### What was done
-- Implemented `Render(markdown string) string` function
-- Implemented `headingLevel(line string) int` helper
-- Implemented `renderInline(text string) string` helper
-- Used named constants for marker characters
-- Used `strings.Builder` for efficient string assembly
-- Used `inList` boolean to track list open/close state
+### Validation Handled
+- Empty rows (leading/trailing/middle newlines)
+- Uneven row lengths
+- Non-integer values (floats, text)
+- Integer overflow (via strconv.Atoi)
+- Out-of-bounds Set operations (negative and beyond-dimension indices)
 
-### Test Results
-- All 17 test cases pass
+## Test Results
+- All 17 test cases pass (TestNew, TestRows, TestCols, TestSet)
 - `go vet` clean
-- No external dependencies (stdlib only: `fmt`, `strings`)
-
-### Commit
-- `18107ed` — "Implement markdown-to-HTML parser"
+- Benchmarks compile and run correctly

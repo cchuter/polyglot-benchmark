@@ -1,22 +1,25 @@
-# Scope: polyglot-go-markdown (Issue #264)
+# Scope: polyglot-go-matrix
 
 ## In Scope
 
-- Implement `Render` function in `go/exercises/practice/markdown/markdown.go`
-- Handle all Markdown features tested: paragraphs, headings (h1-h6), bold, italic, unordered lists
-- Handle edge cases: h7+ as paragraphs, markdown symbols in text, list open/close boundaries
-- Pass all existing tests in `cases_test.go` and `markdown_test.go`
+- Implement `Matrix` type in `go/exercises/practice/matrix/matrix.go`
+- Implement `New()` constructor with full input validation
+- Implement `Rows()` method returning independent copy of row data
+- Implement `Cols()` method returning independent copy of column data
+- Implement `Set()` method with bounds checking
+- Ensure all tests and benchmarks in `matrix_test.go` pass
+- Ensure `go vet` passes
 
 ## Out of Scope
 
-- Modifying test files (`cases_test.go`, `markdown_test.go`)
+- Modifying `matrix_test.go`
 - Modifying `go.mod`
-- Modifying `.meta/` or `.docs/` files
-- Supporting Markdown features not tested (e.g., links, images, ordered lists, code blocks)
-- Adding external dependencies
-- Nested lists or multi-level headings within lists
+- Adding additional files or packages
+- Performance optimization beyond what's needed to pass benchmarks
+- Any changes outside `go/exercises/practice/matrix/`
 
 ## Dependencies
 
-- Go standard library only (`fmt`, `strings`)
-- No external packages
+- Go standard library only (`errors`, `strconv`, `strings`)
+- No external packages required
+- Go 1.18+ (per go.mod)
