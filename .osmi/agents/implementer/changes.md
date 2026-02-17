@@ -1,23 +1,22 @@
-# Changes: ledger.go implementation
+# Changes: Implement Render function for markdown parser
 
-## Files Modified
-- `go/exercises/practice/ledger/ledger.go` — Complete implementation
+## File Modified
+- `go/exercises/practice/markdown/markdown.go`
 
-## What Changed
-- Defined `Entry` struct with `Date`, `Description`, and `Change` fields
-- Implemented `FormatLedger(currency, locale string, entries []Entry) (string, error)`:
-  - Currency validation: "USD" → "$", "EUR" → "€", else error
-  - Locale validation with exact headers for "en-US" and "nl-NL"
-  - Date validation via `time.Parse("2006-01-02", ...)`
-  - Copies input slice before sorting (preserves caller's slice)
-  - Sorts by date, then description, then change
-  - Formats dates: en-US as MM/DD/YYYY, nl-NL as DD-MM-YYYY
-  - Truncates descriptions >25 chars to 22+"..."
-  - Right-aligns amounts to 13 characters
-- Implemented `formatAmount` helper:
-  - Thousand separators (comma for en-US, period for nl-NL)
-  - Decimal separators (period for en-US, comma for nl-NL)
-  - Negative wrapping: en-US uses parentheses, nl-NL uses trailing dash
+## What Was Done
+Implemented the `Render` function that translates markdown input to HTML using a line-by-line processor with inline formatting support.
+
+### Functions Implemented
+1. **`Render(input string) string`** — Main entry point. Splits input into lines, classifies each as header, list item, or paragraph, tracks list state (`<ul>` open/close), applies inline formatting, and returns the built HTML string.
+2. **`headerLevel(line string) int`** — Counts leading `#` characters and returns the level (1-6) if followed by a space, 0 otherwise.
+3. **`applyInline(text string) string`** — Applies bold (`__` → `<strong>`) then italic (`_` → `<em>`) formatting.
+4. **`replaceMarker(text, marker, open, close string) string`** — Generic split-and-rejoin helper that replaces markers with alternating open/close HTML tags.
+
+### Design Decisions
+- Uses `strings.Builder` for efficient string concatenation
+- Processes bold (`__`) before italic (`_`) to prevent marker interference
+- Only imports `"strings"` — no regex or other dependencies
+- Header level 7+ treated as paragraph (per spec)
 
 ## Test Results
-All 17 tests pass (10 success cases, 6 failure cases, 1 mutation guard).
+All 17 tests pass.
