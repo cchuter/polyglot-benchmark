@@ -1,33 +1,22 @@
 package bottlesong
 
-import "fmt"
+import (
+	"fmt"
+	"unicode"
+	"unicode/utf8"
+)
 
-func Recite(startBottles, takeDown int) []string {
-	var result []string
-	for i := 0; i < takeDown; i++ {
-		n := startBottles - i
-		if i > 0 {
-			result = append(result, "")
-		}
-		word := Title(numberWord(n))
-		nextWord := numberWord(n - 1)
-		result = append(result,
-			fmt.Sprintf("%s green %s hanging on the wall,", word, bottleStr(n)),
-			fmt.Sprintf("%s green %s hanging on the wall,", word, bottleStr(n)),
-			"And if one green bottle should accidentally fall,",
-			fmt.Sprintf("There'll be %s green %s hanging on the wall.", nextWord, bottleStr(n-1)),
-		)
+var numberWord = []string{
+	"no", "one", "two", "three", "four",
+	"five", "six", "seven", "eight", "nine", "ten",
+}
+
+func capitalize(s string) string {
+	r, size := utf8.DecodeRuneInString(s)
+	if r == utf8.RuneError {
+		return s
 	}
-	return result
-}
-
-var numbers = []string{
-	"no", "one", "two", "three", "four", "five",
-	"six", "seven", "eight", "nine", "ten",
-}
-
-func numberWord(n int) string {
-	return numbers[n]
+	return string(unicode.ToUpper(r)) + s[size:]
 }
 
 func bottleStr(n int) string {
@@ -35,4 +24,22 @@ func bottleStr(n int) string {
 		return "bottle"
 	}
 	return "bottles"
+}
+
+func Recite(startBottles int, takeDown int) []string {
+	var result []string
+	for i := startBottles; i > startBottles-takeDown; i-- {
+		if len(result) > 0 {
+			result = append(result, "")
+		}
+		cur := capitalize(numberWord[i])
+		next := numberWord[i-1]
+		result = append(result,
+			fmt.Sprintf("%s green %s hanging on the wall,", cur, bottleStr(i)),
+			fmt.Sprintf("%s green %s hanging on the wall,", cur, bottleStr(i)),
+			"And if one green bottle should accidentally fall,",
+			fmt.Sprintf("There'll be %s green %s hanging on the wall.", next, bottleStr(i-1)),
+		)
+	}
+	return result
 }
