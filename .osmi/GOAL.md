@@ -1,33 +1,26 @@
-# Goal: polyglot-go-counter
+# Goal: Implement Crypto Square (Go)
 
 ## Problem Statement
 
-Implement a comprehensive test suite for a line/letter/character counter tool in Go. This is an inverted exercise: instead of writing code to pass existing tests, the task is to write tests that validate counter implementations.
+Implement the classic "square code" cipher in Go. Given an English text, produce the encoded version by:
 
-The counter system has:
-- A `Counter` interface (`interface.go`) with methods: `AddString(string)`, `Lines() int`, `Letters() int`, `Characters() int`
-- Four implementations (`impl1.go` through `impl4.go`), where `Impl4` is correct and `Impl1-3` contain specific bugs
-- A factory function `makeCounter()` (`maker.go`) that selects an implementation via the `COUNTER_IMPL` environment variable
-
-### Bug Analysis
-
-- **Impl1**: Counts lines by counting `\n` only — misses that a non-empty string without a trailing newline still constitutes a line
-- **Impl2**: Uses ASCII-only letter detection (`A-Z`, `a-z`) — misses Unicode letters (e.g., Cyrillic)
-- **Impl3**: Iterates by byte index (`s[i]`) instead of using `range` — breaks multi-byte UTF-8 characters, producing incorrect character and letter counts for Unicode input
-- **Impl4**: Correct implementation using `range` iteration and `unicode.IsLetter`
+1. **Normalize** the input: remove all non-alphanumeric characters and downcase.
+2. **Arrange** the normalized text into a rectangle with `r` rows and `c` columns, where `c` is the smallest integer such that `r * c >= length`, `c >= r`, and `c - r <= 1`.
+3. **Encode** by reading columns top-to-bottom, left-to-right, producing `c` chunks of `r` characters each, separated by spaces. Pad the last `n` chunks with a trailing space if the text is `n` characters short of filling the full `r * c` rectangle.
 
 ## Acceptance Criteria
 
-1. `counter_test.go` contains a test suite that **passes all tests** when run with `COUNTER_IMPL=4`
-2. The test suite **detects bugs in Impl1** (at least one test fails for `COUNTER_IMPL=1`)
-3. The test suite **detects bugs in Impl2** (at least one test fails for `COUNTER_IMPL=2`)
-4. The test suite **detects bugs in Impl3** (at least one test fails for `COUNTER_IMPL=3`)
-5. `go vet ./...` passes with no issues
-6. `go test` compiles and runs without errors (when COUNTER_IMPL is set)
+1. The function `Encode(string) string` is exported from package `cryptosquare` in `crypto_square.go`.
+2. All 19 test cases in `crypto_square_test.go` pass.
+3. `go vet ./...` reports no issues.
+4. Empty input returns empty string.
+5. Single character input returns that character.
+6. Padding is applied correctly: last `n` chunks get a trailing space when the text doesn't fill the rectangle.
 
 ## Key Constraints
 
-- The solution is the **test file** (`counter_test.go`), not the production code
-- Tests must use the `Counter` interface and `makeCounter()` factory
-- The `counter.go` file should remain as a minimal package declaration
-- Tests must cover: empty input, single strings, multiple `AddString` calls, newline handling, Unicode characters, and mixed content
+- Solution file: `go/exercises/practice/crypto-square/crypto_square.go`
+- Package name: `cryptosquare`
+- Must export `Encode(string) string`
+- No modifications to test file or go.mod
+- Go 1.18 compatibility

@@ -1,20 +1,22 @@
-# Context Summary: polyglot-go-counter
+# Context Summary: Crypto Square
+
+## Status
+Complete. All acceptance criteria met.
 
 ## Key Decisions
-- Selected Branch 1 (minimal direct tests) over table-driven or multi-impl approaches
-- Test suite uses `makeCounter()` factory and `Counter` interface as designed
-- No changes to impl files, interface, or maker
+- Used `strings.Map` with a custom `norm` rune mapper for normalization
+- Rectangle dimensions computed via `ceil(sqrt(n))` for columns, rows derived from columns
+- Padding applied to last columns in reverse order
+- No external dependencies needed
 
 ## Files Modified
-- `.osmi/` — All planning and tracking artifacts (GOAL.md, SCOPE.md, plan.md, plan-review.md, status.json, changelog, iterations, context)
-- `go/exercises/practice/counter/counter_test.go` — Already contained complete solution (9 tests + helper)
-- `go/exercises/practice/counter/counter.go` — Already clean stub
+- `go/exercises/practice/crypto-square/crypto_square.go` — full implementation of `Encode` function
 
 ## Test Results
-- COUNTER_IMPL=4: All 9 tests pass
-- COUNTER_IMPL=1: 4 failures (TestSimpleASCIINoNewline, TestASCIIWithNewlineInMiddle, TestMultipleAddStrings, TestMixedContent)
-- COUNTER_IMPL=2: 1 failure (TestUnicodeLetters — Letters count wrong)
-- COUNTER_IMPL=3: 1 failure (TestUnicodeLetters — Characters count wrong)
+- 19/19 tests passing
+- `go vet` clean
+- Benchmarks available via `go test -bench .`
 
-## Blockers / Open Questions
-- None. All acceptance criteria met.
+## Branch
+- Feature branch: `issue-247`
+- Pushed to origin

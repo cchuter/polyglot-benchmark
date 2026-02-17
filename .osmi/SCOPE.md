@@ -1,23 +1,22 @@
-# Scope: polyglot-go-counter
+# Scope: Crypto Square (Go)
 
 ## In Scope
 
-- Writing/verifying the test suite in `go/exercises/practice/counter/counter_test.go`
-- Ensuring `counter.go` is a clean package declaration stub
-- Verifying all four implementations behave as expected against the test suite
-- Ensuring the code compiles and passes `go vet`
+- Implement the `Encode` function in `go/exercises/practice/crypto-square/crypto_square.go`
+- Handle normalization (remove non-alphanumeric, downcase)
+- Handle rectangle sizing (c >= r, c - r <= 1, r * c >= len)
+- Handle column-wise reading and space-separated output with padding
+- All edge cases: empty string, single char, strings needing padding
 
 ## Out of Scope
 
-- Modifying the implementation files (`impl1.go` through `impl4.go`)
-- Modifying the interface file (`interface.go`)
-- Modifying the factory file (`maker.go`)
+- Modifying `crypto_square_test.go`
 - Modifying `go.mod`
-- Adding any new dependencies
-- Changes to exercises outside the `counter` directory
+- Implementing a decode function
+- Changes to any other exercise or language directory
+- Benchmark optimization beyond passing tests
 
 ## Dependencies
 
-- Go 1.18+ (as specified in `go.mod`)
-- Standard library only (`testing`, `unicode`)
-- Pre-existing files: `interface.go`, `maker.go`, `impl1.go`–`impl4.go`
+- Go standard library only (`math`, `strings`, `unicode`)
+- No external packages required
