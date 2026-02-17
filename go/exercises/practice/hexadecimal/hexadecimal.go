@@ -1,64 +1,51 @@
 package hexadecimal
 
 import (
-	"errors"
-	"math"
+	"fmt"
+	"strings"
 )
 
-var ErrRange = errors.New("value out of range")
-var ErrSyntax = errors.New("invalid syntax")
-
-type ParseError struct {
-	Num string
-	Err error
-}
-
-func (e *ParseError) Error() string {
-	return "hexadecimal.ParseHex: parsing \"" + e.Num + "\": " + e.Err.Error()
-}
-
-func ParseHex(s string) (n int64, err error) {
-	if len(s) < 1 {
-		return 0, &ParseError{s, ErrSyntax}
+func ParseHex(s string) (int64, error) {
+	if len(s) == 0 {
+		return 0, fmt.Errorf("syntax error: empty string")
 	}
-	for i := 0; i < len(s); i++ {
-		d := s[i]
-		var v byte
+
+	if len(s) > 16 {
+		return 0, fmt.Errorf("range error: too many digits")
+	}
+
+	var result int64
+	for i, ch := range s {
+		var d int64
 		switch {
-		case '0' <= d && d <= '9':
-			v = d - '0'
-		case 'a' <= d && d <= 'f':
-			v = d - 'a' + 10
-		case 'A' <= d && d <= 'F':
-			v = d - 'A' + 10
+		case ch >= '0' && ch <= '9':
+			d = int64(ch - '0')
+		case ch >= 'a' && ch <= 'f':
+			d = int64(ch-'a') + 10
+		case ch >= 'A' && ch <= 'F':
+			d = int64(ch-'A') + 10
 		default:
-			return 0, &ParseError{s, ErrSyntax}
+			return 0, fmt.Errorf("syntax error: invalid character '%c'", ch)
 		}
-		if n >= math.MaxInt64/16+1 {
-			return 0, &ParseError{s, ErrRange}
+		if i == 0 && len(s) == 16 && d >= 8 {
+			return 0, fmt.Errorf("range error: overflow")
 		}
-		n *= 16
-		n1 := n + int64(v)
-		if n1 < n {
-			return 0, &ParseError{s, ErrRange}
-		}
-		n = n1
+		result = result*16 + d
 	}
-	return n, nil
+	return result, nil
 }
 
-func HandleErrors(tests []string) []string {
-	e := make([]string, len(tests))
-	for i, s := range tests {
+func HandleErrors(inputs []string) []string {
+	results := make([]string, len(inputs))
+	for i, s := range inputs {
 		_, err := ParseHex(s)
-		switch pe, ok := err.(*ParseError); {
-		case err == nil:
-			e[i] = "none"
-		case ok && pe.Err == ErrSyntax:
-			e[i] = "syntax"
-		case ok && pe.Err == ErrRange:
-			e[i] = "range"
+		if err == nil {
+			results[i] = "none"
+		} else if strings.Contains(err.Error(), "range") {
+			results[i] = "range"
+		} else {
+			results[i] = "syntax"
 		}
 	}
-	return e
+	return results
 }
