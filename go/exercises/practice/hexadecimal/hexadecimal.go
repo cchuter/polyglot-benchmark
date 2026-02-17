@@ -6,6 +6,7 @@ import (
 )
 
 var ErrRange = errors.New("value out of range")
+
 var ErrSyntax = errors.New("invalid syntax")
 
 type ParseError struct {
