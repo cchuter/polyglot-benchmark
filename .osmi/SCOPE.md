@@ -1,23 +1,23 @@
-# Scope: polyglot-go-octal
+# Scope: paasio Exercise (Issue #355)
 
 ## In Scope
 
-- Implementing `ParseOctal` function in `go/exercises/practice/octal/octal.go`
-- Handling valid octal strings (digits 0-7) by converting to decimal int64
-- Handling invalid input (non-digit characters, digits 8-9) by returning 0 and an error
-- Passing all existing tests in `octal_test.go`
+- Implementing the solution in `go/exercises/practice/paasio/paasio.go`
+- Implementing `NewReadCounter`, `NewWriteCounter`, and `NewReadWriteCounter` constructors
+- Implementing thread-safe byte/operation counting via `ReadCount()` and `WriteCount()`
+- Ensuring all tests in `paasio_test.go` pass
+- Ensuring `go vet` passes
 
 ## Out of Scope
 
-- Modifying test files (`octal_test.go`)
+- Modifying `interface.go` (defines the required interfaces, read-only)
+- Modifying `paasio_test.go` (test file, read-only)
 - Modifying `go.mod`
-- Modifying `.meta/` files
-- Implementing other exercises
-- Overflow handling beyond what tests require
-- Negative number support (not tested)
+- Adding any new files beyond `paasio.go`
+- Changes to exercises other than `paasio`
 
 ## Dependencies
 
-- Go 1.18+ (as specified in `go.mod`)
-- Standard library `fmt` or `errors` package for error creation
-- No external packages
+- Go standard library: `io`, `sync`
+- No external packages required
+- The `interface.go` file defines `ReadCounter`, `WriteCounter`, and `ReadWriteCounter` interfaces

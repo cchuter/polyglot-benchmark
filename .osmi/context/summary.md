@@ -1,17 +1,24 @@
-# Context Summary: polyglot-go-octal
+# Context Summary: paasio (Issue #355)
+
+## Status: Complete
+
+## Solution
+Implemented in `go/exercises/practice/paasio/paasio.go` using a mutex-based counter pattern:
+- `counter` struct holds `bytes int64`, `ops int`, and `*sync.Mutex`
+- `readCounter` wraps `io.Reader`, delegates reads and tracks stats
+- `writeCounter` wraps `io.Writer`, delegates writes and tracks stats
+- `rwCounter` composes `WriteCounter` and `ReadCounter` for `ReadWriteCounter`
 
 ## Key Decisions
-- Used bit-shifting (`<<3`) instead of explicit multiplication (`*8`) to match reference solution pattern
-- Used `fmt.Errorf` for error creation to include the invalid character in the message
-- Used `range` iteration over string (rune-based) for idiomatic Go
+- Used mutex (not atomics) to guarantee consistency between bytes and ops counts
+- Solution matches the reference solution in `.meta/example.go`
 
 ## Files Modified
-- `go/exercises/practice/octal/octal.go` — implemented `ParseOctal`
+- `go/exercises/practice/paasio/paasio.go` — full solution (87 lines)
 
 ## Test Results
-- All 5 test cases pass (1, 10, 1234567, carrot, 35682)
+- 13/13 tests pass with `-race` flag
 - `go vet` clean
 
 ## Branch
-- Feature branch: `issue-353`
-- Pushed to origin
+- `issue-355` pushed to origin

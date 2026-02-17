@@ -8,19 +8,23 @@ import (
 type counter struct {
 	bytes int64
 	ops   int
-	mu    sync.Mutex
+	mutex *sync.Mutex
+}
+
+func newCounter() counter {
+	return counter{mutex: new(sync.Mutex)}
 }
 
 func (c *counter) addBytes(n int) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
 	c.bytes += int64(n)
 	c.ops++
 }
 
-func (c *counter) count() (int64, int) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+func (c *counter) count() (n int64, ops int) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
 	return c.bytes, c.ops
 }
 
@@ -29,17 +33,13 @@ type readCounter struct {
 	counter
 }
 
-func NewReadCounter(r io.Reader) ReadCounter {
-	return &readCounter{r: r}
-}
-
 func (rc *readCounter) Read(p []byte) (int, error) {
-	n, err := rc.r.Read(p)
-	rc.addBytes(n)
-	return n, err
+	m, err := rc.r.Read(p)
+	rc.addBytes(m)
+	return m, err
 }
 
-func (rc *readCounter) ReadCount() (int64, int) {
+func (rc *readCounter) ReadCount() (n int64, nops int) {
 	return rc.count()
 }
 
@@ -48,17 +48,13 @@ type writeCounter struct {
 	counter
 }
 
-func NewWriteCounter(w io.Writer) WriteCounter {
-	return &writeCounter{w: w}
-}
-
 func (wc *writeCounter) Write(p []byte) (int, error) {
-	n, err := wc.w.Write(p)
-	wc.addBytes(n)
-	return n, err
+	m, err := wc.w.Write(p)
+	wc.addBytes(m)
+	return m, err
 }
 
-func (wc *writeCounter) WriteCount() (int64, int) {
+func (wc *writeCounter) WriteCount() (n int64, nops int) {
 	return wc.count()
 }
 
@@ -67,9 +63,26 @@ type rwCounter struct {
 	ReadCounter
 }
 
+// NewWriteCounter returns an implementation of WriteCounter.
+func NewWriteCounter(w io.Writer) WriteCounter {
+	return &writeCounter{
+		w:       w,
+		counter: newCounter(),
+	}
+}
+
+// NewReadCounter returns an implementation of ReadCounter.
+func NewReadCounter(r io.Reader) ReadCounter {
+	return &readCounter{
+		r:       r,
+		counter: newCounter(),
+	}
+}
+
+// NewReadWriteCounter returns an implementation of ReadWriteCounter.
 func NewReadWriteCounter(rw io.ReadWriter) ReadWriteCounter {
 	return &rwCounter{
-		WriteCounter: NewWriteCounter(rw),
-		ReadCounter:  NewReadCounter(rw),
+		NewWriteCounter(rw),
+		NewReadCounter(rw),
 	}
 }

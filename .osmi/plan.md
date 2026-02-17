@@ -1,135 +1,180 @@
-# Implementation Plan: polyglot-go-octal
+# Implementation Plan: paasio Exercise
 
-## Proposal A (Proponent)
+## Proposal A: Mutex-based approach
 
-**Approach: Iterate with bit-shifting (matching the reference solution pattern)**
+**Role: Proponent**
 
-Implement `ParseOctal` by iterating through each character of the input string left-to-right. For each character, validate it is in the range '0'-'7'. If valid, left-shift the accumulator by 3 bits (equivalent to multiplying by 8) and add the digit value. If any character is invalid, return `(0, error)`.
+### Approach
 
-### Files to modify
-- `go/exercises/practice/octal/octal.go` — add `ParseOctal` function and `fmt` import
+Use a `sync.Mutex` to protect byte count and operation count fields. This is the classic approach for synchronized shared state in Go.
+
+### Structures
+
+- `counter` struct with `bytes int64`, `ops int`, and `mutex *sync.Mutex`
+- `readCounter` struct embedding `counter` and holding an `io.Reader`
+- `writeCounter` struct embedding `counter` and holding an `io.Writer`
+- `rwCounter` struct embedding both `WriteCounter` and `ReadCounter`
 
 ### Implementation
-```go
-package octal
 
-import "fmt"
-
-func ParseOctal(input string) (int64, error) {
-    num := int64(0)
-    for _, r := range input {
-        if r < '0' || r > '7' {
-            return 0, fmt.Errorf("invalid octal digit: %c", r)
-        }
-        num = num<<3 + int64(r-'0')
-    }
-    return num, nil
-}
-```
+1. `counter.addBytes(n int)` — locks mutex, increments bytes and ops atomically, unlocks
+2. `counter.count() (int64, int)` — locks mutex, reads both fields, unlocks
+3. `readCounter.Read(p)` — delegates to underlying reader, then calls `addBytes`
+4. `readCounter.ReadCount()` — delegates to `counter.count()`
+5. Same pattern for `writeCounter`
+6. `NewReadWriteCounter` composes `NewWriteCounter` and `NewReadCounter`
 
 ### Rationale
-- Matches the reference solution in `.meta/example.go` almost exactly
-- Bit-shifting (`<<3`) is idiomatic for powers-of-2 base conversions
-- Simple, minimal, single-pass O(n) algorithm
-- Uses `fmt.Errorf` which is standard library only
-- Uses `range` over string which iterates runes (handles UTF-8 correctly, though all valid inputs are ASCII)
 
-### Strengths
-- Proven correct (matches reference)
-- Minimal code, easy to understand
-- No unnecessary abstractions
+- Both bytes and ops are updated under the same lock, guaranteeing the consistency invariant (`nops == n / numBytes`) required by the tests.
+- Simple, well-understood pattern in Go.
+- Matches the reference solution in `.meta/example.go` exactly.
+
+### Files Modified
+
+- `go/exercises/practice/paasio/paasio.go` (the only solution file)
 
 ---
 
-## Proposal B (Opponent)
+## Proposal B: Atomic-based approach
 
-**Approach: Explicit multiplication with `errors.New` and index-based loop**
+**Role: Opponent**
 
-Implement `ParseOctal` by iterating through the string using byte indexing. Validate each byte, multiply accumulator by 8 (explicit multiplication), and add digit value. Use `errors.New` for the error.
+### Approach
 
-### Files to modify
-- `go/exercises/practice/octal/octal.go` — add `ParseOctal` function and `errors` import
+Use `sync/atomic` operations instead of a mutex. Store a combined state in an `atomic.Value` or use two separate `atomic.Int64` values.
+
+### Structures
+
+- `readCounter` with `io.Reader`, `bytesRead atomic.Int64`, `opsRead atomic.Int64`
+- `writeCounter` with `io.Writer`, `bytesWritten atomic.Int64`, `opsWritten atomic.Int64`
+- `rwCounter` composing both
 
 ### Implementation
-```go
-package octal
 
-import "errors"
-
-func ParseOctal(input string) (int64, error) {
-    var result int64
-    for i := 0; i < len(input); i++ {
-        d := input[i]
-        if d < '0' || d > '7' {
-            return 0, errors.New("invalid octal input")
-        }
-        result = result*8 + int64(d-'0')
-    }
-    return result, nil
-}
-```
+1. `Read()` calls underlying reader, then atomically adds bytes and increments ops
+2. `ReadCount()` reads both atomics
 
 ### Critique of Proposal A
-- Using `fmt.Errorf` pulls in the heavier `fmt` package when `errors.New` suffices
-- Using `range` iterates runes which adds unnecessary complexity for what is guaranteed to be ASCII-only input
-- Bit-shifting is slightly less readable than explicit `*8` for someone unfamiliar with the idiom
 
-### Strengths of Proposal B
-- `errors.New` is lighter weight than `fmt.Errorf`
-- Byte indexing is more explicit about what we're doing (all valid octal chars are single-byte ASCII)
-- `result*8` is clearer about the mathematical operation
+- Mutex has higher overhead than atomics in high-contention scenarios.
 
-### Weaknesses of Proposal B
-- `errors.New` gives a less informative error message (no character info)
-- Byte indexing vs range is a minor stylistic difference with no practical impact
-- `*8` vs `<<3` compiles to the same instruction; readability is subjective
+### Problems with Proposal B
+
+- **Critical flaw**: The consistency tests require that `nops == n / numBytes` at any observation point. With two separate atomic values, there's a race between updating bytes and updating ops — a concurrent `ReadCount()` call could see updated bytes but stale ops (or vice versa). This would **fail the consistency tests**.
+- Could be fixed with a single atomic holding a combined struct (e.g., `atomic.Value` with a `{bytes, ops}` pair), but `atomic.Value` requires interface boxing and is more complex and error-prone.
+- More complex to reason about correctness than a simple mutex.
+
+### Files Modified
+
+- `go/exercises/practice/paasio/paasio.go`
 
 ---
 
-## Selected Plan (Judge)
+## Selected Plan
+
+**Role: Judge**
 
 ### Evaluation
 
-| Criterion     | Proposal A              | Proposal B              |
-|---------------|-------------------------|-------------------------|
-| Correctness   | Fully correct           | Fully correct           |
-| Risk          | Minimal                 | Minimal                 |
-| Simplicity    | Very simple             | Very simple             |
-| Consistency   | Matches reference exactly | Slightly diverges      |
+| Criterion     | Proposal A (Mutex)         | Proposal B (Atomics)        |
+|---------------|---------------------------|-----------------------------|
+| Correctness   | Guaranteed — single lock protects both fields | Risky — two separate atomics fail consistency tests; combined atomic is complex |
+| Risk          | Very low                   | High — subtle concurrency bugs |
+| Simplicity    | Simple, ~90 lines          | More complex, harder to reason about |
+| Consistency   | Matches reference solution exactly | Deviates from established pattern |
 
-Both proposals are correct and minimal. The differences are trivial:
-- `fmt.Errorf` vs `errors.New`: The test only checks `err != nil`, so error message content doesn't matter. However, `fmt.Errorf` gives better debugging info.
-- `<<3` vs `*8`: Both compile identically. The reference uses `<<3`.
-- `range` vs byte indexing: Both work correctly for ASCII input.
+### Decision
 
-**Winner: Proposal A**, because it matches the reference solution pattern exactly, which reduces risk and is consistent with the codebase's existing example. The `fmt` import is negligible overhead.
+**Proposal A wins.** The mutex approach is correct, simple, matches the reference solution, and directly satisfies the consistency requirements of the tests. The atomic approach introduces unnecessary complexity and risk for no meaningful benefit.
 
 ### Final Implementation Plan
 
-**File: `go/exercises/practice/octal/octal.go`**
+**File to modify:** `go/exercises/practice/paasio/paasio.go`
 
-Replace the stub with:
-
+**Step 1:** Define a `counter` helper struct:
 ```go
-package octal
+type counter struct {
+    bytes int64
+    ops   int
+    mutex *sync.Mutex
+}
 
-import "fmt"
+func newCounter() counter {
+    return counter{mutex: new(sync.Mutex)}
+}
 
-func ParseOctal(input string) (int64, error) {
-    num := int64(0)
-    for _, r := range input {
-        if r < '0' || r > '7' {
-            return 0, fmt.Errorf("invalid octal digit: %c", r)
-        }
-        num = num<<3 + int64(r-'0')
-    }
-    return num, nil
+func (c *counter) addBytes(n int) {
+    c.mutex.Lock()
+    defer c.mutex.Unlock()
+    c.bytes += int64(n)
+    c.ops++
+}
+
+func (c *counter) count() (n int64, ops int) {
+    c.mutex.Lock()
+    defer c.mutex.Unlock()
+    return c.bytes, c.ops
 }
 ```
 
-### Steps
-1. Create feature branch `issue-353`
-2. Write the implementation to `octal.go`
-3. Run `go test ./...` from the octal exercise directory
-4. Run `go vet ./...`
-5. Commit with descriptive message
+**Step 2:** Define `readCounter`:
+```go
+type readCounter struct {
+    r io.Reader
+    counter
+}
+
+func (rc *readCounter) Read(p []byte) (int, error) {
+    m, err := rc.r.Read(p)
+    rc.addBytes(m)
+    return m, err
+}
+
+func (rc *readCounter) ReadCount() (n int64, nops int) {
+    return rc.count()
+}
+```
+
+**Step 3:** Define `writeCounter`:
+```go
+type writeCounter struct {
+    w io.Writer
+    counter
+}
+
+func (wc *writeCounter) Write(p []byte) (int, error) {
+    m, err := wc.w.Write(p)
+    wc.addBytes(m)
+    return m, err
+}
+
+func (wc *writeCounter) WriteCount() (n int64, nops int) {
+    return wc.count()
+}
+```
+
+**Step 4:** Define `rwCounter` and constructors:
+```go
+type rwCounter struct {
+    WriteCounter
+    ReadCounter
+}
+
+func NewWriteCounter(w io.Writer) WriteCounter {
+    return &writeCounter{w: w, counter: newCounter()}
+}
+
+func NewReadCounter(r io.Reader) ReadCounter {
+    return &readCounter{r: r, counter: newCounter()}
+}
+
+func NewReadWriteCounter(rw io.ReadWriter) ReadWriteCounter {
+    return &rwCounter{
+        NewWriteCounter(rw),
+        NewReadCounter(rw),
+    }
+}
+```
+
+**Step 5:** Run tests and vet to verify.
