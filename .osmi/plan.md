@@ -1,62 +1,102 @@
-# Implementation Plan: polyglot-go-markdown
+# Implementation Plan: polyglot-go-matrix
 
-## Proposal A
+## Proposal A: Matrix as a Named Slice Type
 
 **Role: Proponent**
 
-### Approach: Line-by-line parser with state tracking
+### Approach
 
-Implement a clean, single-pass line-by-line parser that closely follows the reference solution's structure but emphasizes readability.
+Define `Matrix` as a named slice type `type Matrix [][]int`. This is the simplest possible representation — the Matrix *is* the data.
 
-**Files to modify:**
-- `go/exercises/practice/markdown/markdown.go`
+### Files to Modify
 
-**Architecture:**
-1. Split input by newlines, process each line
-2. Use a `strings.Builder` for output accumulation
-3. Track "in list" state with a slice of list items
-4. For each line, determine its type by the first character:
-   - `*` → list item: accumulate in list items slice
-   - `#` → potential heading: count `#` chars (1-6 = heading, 7+ = paragraph)
-   - anything else → paragraph
-5. When transitioning out of a list (non-`*` line after `*` lines), flush the accumulated list
-6. After all lines, flush any remaining list
-7. Inline formatting handled by a `renderInlineHTML` function:
-   - First replace `__` pairs with `<strong>`/`</strong>`
-   - Then replace `_` pairs with `<em>`/`</em>`
+- `go/exercises/practice/matrix/matrix.go` — implement the full solution
 
-**Why this is best:**
-- Directly mirrors the reference solution structure, ensuring correctness
-- Simple, linear flow that's easy to follow
-- Minimal abstraction overhead — just two functions (`Render` and `renderInlineHTML`) plus a helper (`getHeadingLevel`)
-- Uses only standard library (`fmt`, `strings`)
+### Design
 
-## Proposal B
+```go
+type Matrix [][]int
+
+func New(s string) (Matrix, error) { ... }
+func (m Matrix) Rows() [][]int { ... }
+func (m Matrix) Cols() [][]int { ... }
+func (m Matrix) Set(row, col, val int) bool { ... }
+```
+
+### Rationale
+
+- **Simplicity**: No struct wrapper, no indirection. The type *is* the data.
+- **Nilability**: Slices are inherently nilable, so `var matrix Matrix` is nil and `matrix == nil` works.
+- **Set works with value receiver**: Since slice headers share the underlying array, `m[r][c] = val` modifies the actual data even through a value receiver. No pointer receiver needed.
+- **Deep copy for Rows/Cols**: Allocate new slices and copy element-by-element.
+- **Minimal code**: Fewest lines, easiest to read.
+
+### Parsing Logic
+
+1. Split input string by `"\n"` into row strings
+2. For each row string, trim leading/trailing spaces, split by whitespace
+3. Validate: no empty rows, all rows same length, all values parseable as int
+4. Convert each value via `strconv.Atoi`
+
+### Weaknesses Addressed
+
+- Value receiver on `Set` works because slices share underlying storage. This is idiomatic Go for slice-based types.
+
+---
+
+## Proposal B: Matrix as a Struct with Pointer Semantics
 
 **Role: Opponent**
 
-### Approach: Type-driven with explicit line classification
+### Approach
 
-Instead of checking characters inline, first classify each line into a typed struct, then render all classified lines. This separates parsing from rendering.
+Define `Matrix` as a pointer to a struct that holds the data. Use an unexported struct with an exported pointer type alias, or use an interface.
 
-**Files to modify:**
-- `go/exercises/practice/markdown/markdown.go`
+### Option B1: Pointer to struct
 
-**Architecture:**
-1. Define a `lineType` enum (heading, listItem, paragraph)
-2. Define a `parsedLine` struct with type, content, and heading level
-3. First pass: classify every line into `[]parsedLine`
-4. Second pass: render classified lines, grouping consecutive list items into `<ul>` blocks
-5. Inline formatting in a separate function
+The test benchmark uses `var matrix Matrix` and then `matrix == nil`. If `Matrix` is a struct, this can't be nil. So we'd need `Matrix` to be `*matrixData`:
 
-**Critique of Proposal A:**
-- Proposal A interleaves classification and rendering, making it slightly harder to test individual concerns
-- State tracking (the list items slice) is mutable state that makes reasoning harder
+```go
+type matrixData struct {
+    data [][]int
+}
+type Matrix = *matrixData
+```
 
-**Why this is better:**
-- Clean separation of concerns: parsing vs rendering
-- Each phase is independently testable
-- More extensible if new line types are added
+But Go doesn't allow methods on type aliases of pointer types. So this doesn't work directly.
+
+### Option B2: Interface
+
+```go
+type Matrix interface {
+    Rows() [][]int
+    Cols() [][]int
+    Set(row, col, val int) bool
+}
+
+type matrix struct {
+    data [][]int
+}
+```
+
+### Rationale for B2
+
+- **Encapsulation**: Internal data is hidden behind an interface. Users can't accidentally access `m[0][0]` directly.
+- **Pointer semantics guaranteed**: `Set` modifies through a `*matrix` receiver, no ambiguity.
+- **Flexibility**: Could swap implementations.
+
+### Critique of Proposal A
+
+- Relying on value-receiver-modifying-underlying-data for `Set` is subtle. Someone reading the code might expect a value receiver to not mutate.
+- The `Matrix` type being `[][]int` means callers could bypass methods and index directly.
+
+### Weaknesses of Proposal B
+
+- More code: need both an interface and a struct type.
+- Over-engineered for a simple exercise.
+- The interface approach adds abstraction where none is needed.
+
+---
 
 ## Selected Plan
 
@@ -64,49 +104,105 @@ Instead of checking characters inline, first classify each line into a typed str
 
 ### Evaluation
 
-**Correctness:** Both proposals can satisfy all 17 test cases. Proposal A is proven correct since it mirrors the reference solution.
+| Criterion    | Proposal A (Slice)    | Proposal B (Interface) |
+|-------------|----------------------|----------------------|
+| Correctness | Fully satisfies all test requirements. Slice nilability, value receiver Set, deep copy Rows/Cols all work correctly. | Also correct, but more complex setup. |
+| Risk        | Low. Slice-as-type is well-established Go pattern. | Low, but more surface area for bugs in the interface/struct split. |
+| Simplicity  | Minimal code, single type, no indirection. | More types, more indirection, more code. |
+| Consistency | Matches the exercise's minimalist stub (`package matrix` with no existing types). | Over-engineered for the codebase convention of simple exercise solutions (see `ledger.go`). |
 
-**Risk:** Proposal B introduces more code surface area (types, structs, two passes) for no additional test coverage. The extra abstraction is a risk of over-engineering for this small exercise.
+### Decision
 
-**Simplicity:** Proposal A is simpler — fewer lines, fewer concepts, fewer types. For an exercise with exactly 3 line types, a type enum adds ceremony without value.
+**Proposal A wins.** The named slice type is the simplest, most idiomatic approach. It satisfies all test requirements with minimal code. The value-receiver-modifies-underlying-data behavior is well-understood in Go for slice types and is not a "gotcha" — it's how slices work by design.
 
-**Consistency:** Looking at other exercises in the repo (e.g., `ledger.go`), solutions are direct and pragmatic, not heavily abstracted. Proposal A fits this convention better.
+### Final Implementation Plan
 
-### Winner: Proposal A
+**File**: `go/exercises/practice/matrix/matrix.go`
 
-Proposal A wins because it is simpler, proven correct via the reference solution, and consistent with codebase conventions. Proposal B's separation of concerns is laudable in a larger system but is over-engineering for this 65-line exercise.
+```go
+package matrix
 
-### Detailed Implementation Plan
+import (
+    "fmt"
+    "strconv"
+    "strings"
+)
 
-**File:** `go/exercises/practice/markdown/markdown.go`
+// Matrix represents a matrix of integers as a 2D slice.
+type Matrix [][]int
 
-**Step 1:** Add package declaration and imports (`fmt`, `strings`)
+// New parses a string representation of a matrix into a Matrix.
+func New(s string) (Matrix, error) {
+    lines := strings.Split(s, "\n")
+    m := make(Matrix, len(lines))
+    var numCols int
+    for i, line := range lines {
+        fields := strings.Fields(line)
+        if len(fields) == 0 {
+            return nil, fmt.Errorf("row %d is empty", i)
+        }
+        if i == 0 {
+            numCols = len(fields)
+        } else if len(fields) != numCols {
+            return nil, fmt.Errorf("row %d has %d columns, expected %d", i, len(fields), numCols)
+        }
+        row := make([]int, len(fields))
+        for j, field := range fields {
+            val, err := strconv.Atoi(field)
+            if err != nil {
+                return nil, fmt.Errorf("invalid value %q at row %d, col %d: %w", field, i, j, err)
+            }
+            row[j] = val
+        }
+        m[i] = row
+    }
+    return m, nil
+}
 
-**Step 2:** Define constants for marker characters:
-- `headingMarker = '#'`
-- `listItemMarker = '*'`
+// Rows returns a deep copy of all rows.
+func (m Matrix) Rows() [][]int {
+    result := make([][]int, len(m))
+    for i, row := range m {
+        result[i] = make([]int, len(row))
+        copy(result[i], row)
+    }
+    return result
+}
 
-**Step 3:** Implement `Render(markdown string) string`:
-- Initialize `strings.Builder` for HTML output
-- Initialize `[]string` for accumulating list items
-- Split markdown by `\n`, iterate lines:
-  - If line starts with `*`: append `<li>renderInlineHTML(line[2:])</li>` to list items, continue
-  - Else if list items non-empty: flush `<ul>...</ul>` to builder, reset list
-  - If line starts with `#`: call `getHeadingLevel(line)`:
-    - If valid (1-6): write `<hN>content</hN>`
-    - If invalid (-1): write `<p>line</p>`
-  - Else: write `<p>renderInlineHTML(line)</p>`
-- After loop: flush remaining list items if any
-- Return builder string
+// Cols returns a deep copy of all columns.
+func (m Matrix) Cols() [][]int {
+    if len(m) == 0 {
+        return nil
+    }
+    numCols := len(m[0])
+    result := make([][]int, numCols)
+    for j := 0; j < numCols; j++ {
+        col := make([]int, len(m))
+        for i := range m {
+            col[i] = m[i][j]
+        }
+        result[j] = col
+    }
+    return result
+}
 
-**Step 4:** Implement `getHeadingLevel(line string) int`:
-- Count leading `#` chars up to index 6
-- If count > 6, return -1
-- Return count
+// Set sets the value at (row, col). Returns false if out of bounds.
+func (m Matrix) Set(row, col, val int) bool {
+    if row < 0 || row >= len(m) {
+        return false
+    }
+    if col < 0 || col >= len(m[row]) {
+        return false
+    }
+    m[row][col] = val
+    return true
+}
+```
 
-**Step 5:** Implement `renderInlineHTML(text string) string`:
-- Replace `__` pairs with `<strong>`/`</strong>` (loop while `__` exists)
-- Replace `_` pairs with `<em>`/`</em>` (loop while `_` exists)
-- Return result
+### Steps
 
-**Step 6:** Run `go test ./...` and `go vet ./...` to verify all 17 tests pass.
+1. Write the implementation to `matrix.go`
+2. Run `go test ./...` in the matrix directory
+3. Run `go vet ./...` in the matrix directory
+4. Fix any issues
+5. Commit

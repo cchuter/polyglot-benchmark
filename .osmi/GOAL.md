@@ -1,28 +1,39 @@
-# Goal: polyglot-go-markdown
+# Goal: polyglot-go-matrix
 
 ## Problem Statement
 
-The `markdown` exercise in `go/exercises/practice/markdown/` has an empty stub file (`markdown.go`) that needs a working implementation. The exercise is a "refactoring exercise" — the task is to provide a clean, readable Markdown-to-HTML parser that exports a `Render(markdown string) string` function.
+Implement the `matrix` exercise in Go for the polyglot benchmark suite. Given a string representing a matrix of numbers (rows separated by newlines, columns separated by spaces), provide functionality to:
 
-The parser must handle:
-- Headings (`#` through `######`, with `#######` treated as a paragraph)
-- Paragraphs (plain text lines)
-- Unordered lists (`* ` prefixed lines)
-- Bold text (`__text__` → `<strong>text</strong>`)
-- Italic text (`_text_` → `<em>text</em>`)
-- Mixed inline formatting within paragraphs and list items
+1. Parse the string into a matrix representation
+2. Return the rows of the matrix
+3. Return the columns of the matrix
+4. Set the value of an element at a given row and column
 
 ## Acceptance Criteria
 
-1. All 17 test cases in `cases_test.go` pass (`go test ./...`)
-2. `go vet ./...` reports no issues
-3. The `Render` function is exported from the `markdown` package
-4. Code is clean, readable, and well-structured (this is a refactoring exercise)
-5. The solution handles edge cases: `#######` as paragraph, `#` and `*` in text that should not be interpreted as markdown syntax
+1. **`New(s string) (Matrix, error)`** — Parse a string into a Matrix:
+   - Split input by newlines into rows, split each row by spaces into integer elements
+   - Handle leading/trailing whitespace in rows (e.g., `" 8 7 6"`)
+   - Return an error for: uneven rows, empty rows, non-integer values, int64 overflow
+   - Return a non-nil Matrix on success
+
+2. **`Matrix.Rows() [][]int`** — Return all rows as `[][]int`:
+   - Must return an independent deep copy (modifying returned data must not affect the matrix)
+
+3. **`Matrix.Cols() [][]int`** — Return all columns as `[][]int`:
+   - Must return an independent deep copy (modifying returned data must not affect the matrix)
+
+4. **`Matrix.Set(row, col, val int) bool`** — Set a value at position (row, col):
+   - Zero-based indexing
+   - Return `true` if the position is valid, `false` if out of bounds
+   - Must be reflected in subsequent `Rows()` and `Cols()` calls
+
+5. All existing tests in `matrix_test.go` must pass (`go test ./...`)
+6. Code must pass `go vet ./...`
 
 ## Key Constraints
 
-- The solution file is `markdown.go` in the `markdown` package
-- Must use Go 1.18+ (per `go.mod`)
-- Must pass `go test` and `go vet` cleanly
-- The reference solution in `.meta/example.go` provides a working implementation to guide the approach
+- `Matrix` type must be nilable (used as `var matrix Matrix` and compared to `nil` in benchmarks)
+- The `Matrix` type is used as both the return type of `New` and in `var` declarations
+- Rows and columns are zero-based
+- Module is `matrix` with `go 1.18`
