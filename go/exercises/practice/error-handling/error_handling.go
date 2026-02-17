@@ -1,9 +1,9 @@
 package erratum
 
 func Use(opener ResourceOpener, input string) (err error) {
-	var r Resource
+	var res Resource
 	for {
-		r, err = opener()
+		res, err = opener()
 		if err == nil {
 			break
 		}
@@ -11,15 +11,17 @@ func Use(opener ResourceOpener, input string) (err error) {
 			return err
 		}
 	}
-	defer r.Close()
+	defer res.Close()
 	defer func() {
-		if x := recover(); x != nil {
-			if frobErr, ok := x.(FrobError); ok {
-				r.Defrob(frobErr.defrobTag)
+		if r := recover(); r != nil {
+			if fe, ok := r.(FrobError); ok {
+				res.Defrob(fe.defrobTag)
+				err = fe
+			} else if e, ok := r.(error); ok {
+				err = e
 			}
-			err = x.(error)
 		}
 	}()
-	r.Frob(input)
+	res.Frob(input)
 	return nil
 }
