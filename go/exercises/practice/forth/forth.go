@@ -1,141 +1,225 @@
+// Package forth implements a tiny subset of the Forth language.
 package forth
 
 import (
 	"errors"
 	"strconv"
 	"strings"
+	"unicode"
 )
 
-var (
-	errInsufficientOperands = errors.New("insufficient operands")
-	errDivisionByZero       = errors.New("division by zero")
-	errUndefinedWord        = errors.New("undefined word")
-	errIllegalOperation     = errors.New("illegal operation")
+type operatorFn func(stack *[]int) error
+
+type operatorID byte
+
+const (
+	opAdd operatorID = iota
+	opSub
+	opMul
+	opDiv
+	opDup
+	opDrop
+	opSwap
+	opOver
+	opConst
+	opUserDef
+	opEndDef
 )
 
-// Forth evaluates a sequence of Forth phrases and returns the resulting stack.
+type operatorTyp struct {
+	fn operatorFn
+	id operatorID
+}
+
 func Forth(input []string) ([]int, error) {
-	stack := []int{}
-	defs := map[string][]string{}
+	if len(input) == 0 {
+		return []int{}, nil
+	}
+
+	stack := make([]int, 0, 8)
+	userDefs := make(map[string][]operatorTyp, 8)
 
 	for _, phrase := range input {
-		tokens := strings.Fields(phrase)
-		if err := eval(tokens, &stack, defs); err != nil {
+		opList, err := parse(phrase, userDefs)
+		if err != nil {
 			return nil, err
 		}
+		for _, opr := range opList {
+			if err := opr.fn(&stack); err != nil {
+				return nil, err
+			}
+		}
 	}
+
 	return stack, nil
 }
 
-func eval(tokens []string, stack *[]int, defs map[string][]string) error {
-	for i := 0; i < len(tokens); i++ {
-		token := strings.ToUpper(tokens[i])
+func parse(phrase string, userDefs map[string][]operatorTyp) ([]operatorTyp, error) {
+	words := strings.FieldsFunc(phrase, func(r rune) bool {
+		return unicode.IsSpace(r) || unicode.IsControl(r)
+	})
 
-		if token == ":" {
-			// Parse definition: : word body ;
-			i++
-			if i >= len(tokens) {
-				return errIllegalOperation
-			}
-			word := strings.ToUpper(tokens[i])
+	var oplist []operatorTyp
 
-			// Cannot redefine numbers
-			if _, err := strconv.Atoi(word); err == nil {
-				return errIllegalOperation
-			}
+	for t := 0; t < len(words); t++ {
+		w := strings.ToUpper(words[t])
 
-			// Find the closing ;
-			i++
-			start := i
-			for i < len(tokens) && strings.ToUpper(tokens[i]) != ";" {
-				i++
-			}
-			if i >= len(tokens) {
-				return errIllegalOperation
-			}
-
-			// Expand body tokens using current defs (snapshot semantics)
-			var body []string
-			for _, t := range tokens[start:i] {
-				t = strings.ToUpper(t)
-				if expanded, ok := defs[t]; ok {
-					body = append(body, expanded...)
-				} else {
-					body = append(body, t)
+		if udef, ok := userDefs[w]; ok {
+			oplist = append(oplist, udef...)
+		} else if op, ok := builtinOps[w]; ok {
+			if op.id == opUserDef {
+				t++
+				if t >= len(words)-2 {
+					return nil, errEmptyUserDef
 				}
+				userword := strings.ToUpper(words[t])
+				if _, err := strconv.Atoi(userword); err == nil {
+					return nil, errInvalidUserDef
+				}
+				t++
+				var userops []operatorTyp
+				for t < len(words) {
+					oneOp, err := parse(words[t], userDefs)
+					if err != nil {
+						return nil, err
+					}
+					if oneOp[0].id == opEndDef {
+						break
+					}
+					userops = append(userops, oneOp...)
+					t++
+				}
+				if len(userops) == 0 {
+					return nil, errEmptyUserDef
+				}
+				userDefs[userword] = userops
+			} else {
+				oplist = append(oplist, op)
 			}
-			defs[word] = body
-
-		} else if expanded, ok := defs[token]; ok {
-			if err := eval(expanded, stack, defs); err != nil {
-				return err
-			}
-		} else if n, err := strconv.Atoi(token); err == nil {
-			*stack = append(*stack, n)
 		} else {
-			if err := execBuiltin(token, stack); err != nil {
-				return err
+			x, err := strconv.Atoi(w)
+			if err != nil {
+				return nil, err
 			}
+			oplist = append(oplist, operatorTyp{
+				id: opConst,
+				fn: func(stack *[]int) error {
+					push(stack, x)
+					return nil
+				},
+			})
 		}
 	}
-	return nil
+
+	return oplist, nil
 }
 
-func execBuiltin(op string, stack *[]int) error {
-	switch op {
-	case "+", "-", "*", "/":
-		if len(*stack) < 2 {
-			return errInsufficientOperands
-		}
-		b := pop(stack)
-		a := pop(stack)
-		switch op {
-		case "+":
-			push(stack, a+b)
-		case "-":
-			push(stack, a-b)
-		case "*":
-			push(stack, a*b)
-		case "/":
-			if b == 0 {
-				return errDivisionByZero
-			}
-			push(stack, a/b)
-		}
-	case "DUP":
-		if len(*stack) < 1 {
-			return errInsufficientOperands
-		}
-		push(stack, (*stack)[len(*stack)-1])
-	case "DROP":
-		if len(*stack) < 1 {
-			return errInsufficientOperands
-		}
-		pop(stack)
-	case "SWAP":
-		if len(*stack) < 2 {
-			return errInsufficientOperands
-		}
-		n := len(*stack)
-		(*stack)[n-1], (*stack)[n-2] = (*stack)[n-2], (*stack)[n-1]
-	case "OVER":
-		if len(*stack) < 2 {
-			return errInsufficientOperands
-		}
-		push(stack, (*stack)[len(*stack)-2])
-	default:
-		return errUndefinedWord
+var builtinOps = map[string]operatorTyp{
+	"+":    {add, opAdd},
+	"-":    {subtract, opSub},
+	"*":    {multiply, opMul},
+	"/":    {divide, opDiv},
+	"DUP":  {dup, opDup},
+	"DROP": {drop, opDrop},
+	"SWAP": {swap, opSwap},
+	"OVER": {over, opOver},
+	":":    {nil, opUserDef},
+	";":    {nil, opEndDef},
+}
+
+func pop(stack *[]int) (int, error) {
+	slen := len(*stack)
+	if slen < 1 {
+		return 0, errNotEnoughOperands
 	}
-	return nil
+	v := (*stack)[slen-1]
+	*stack = (*stack)[:slen-1]
+	return v, nil
+}
+
+func pop2(stack *[]int) (int, int, error) {
+	v1, err := pop(stack)
+	if err != nil {
+		return 0, 0, err
+	}
+	v2, err := pop(stack)
+	return v1, v2, err
 }
 
 func push(stack *[]int, v int) {
 	*stack = append(*stack, v)
 }
 
-func pop(stack *[]int) int {
-	n := len(*stack)
-	v := (*stack)[n-1]
-	*stack = (*stack)[:n-1]
-	return v
+func binaryOp(stack *[]int, op func(a, b int) int) error {
+	v1, v2, err := pop2(stack)
+	if err != nil {
+		return err
+	}
+	push(stack, op(v2, v1))
+	return nil
 }
+
+func add(stack *[]int) error {
+	return binaryOp(stack, func(a, b int) int { return a + b })
+}
+
+func subtract(stack *[]int) error {
+	return binaryOp(stack, func(a, b int) int { return a - b })
+}
+
+func multiply(stack *[]int) error {
+	return binaryOp(stack, func(a, b int) int { return a * b })
+}
+
+func divide(stack *[]int) error {
+	v1, v2, err := pop2(stack)
+	if err != nil {
+		return err
+	}
+	if v1 == 0 {
+		return errDivideByZero
+	}
+	push(stack, v2/v1)
+	return nil
+}
+
+func dup(stack *[]int) error {
+	v, err := pop(stack)
+	if err != nil {
+		return err
+	}
+	push(stack, v)
+	push(stack, v)
+	return nil
+}
+
+func drop(stack *[]int) error {
+	_, err := pop(stack)
+	return err
+}
+
+func swap(stack *[]int) error {
+	v1, v2, err := pop2(stack)
+	if err != nil {
+		return err
+	}
+	push(stack, v1)
+	push(stack, v2)
+	return nil
+}
+
+func over(stack *[]int) error {
+	v1, v2, err := pop2(stack)
+	if err != nil {
+		return err
+	}
+	push(stack, v2)
+	push(stack, v1)
+	push(stack, v2)
+	return nil
+}
+
+var errNotEnoughOperands = errors.New("not enough operands")
+var errDivideByZero = errors.New("attempt to divide by zero")
+var errEmptyUserDef = errors.New("empty user definition")
+var errInvalidUserDef = errors.New("invalid user def word")
