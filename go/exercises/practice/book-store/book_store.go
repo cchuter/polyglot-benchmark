@@ -2,45 +2,69 @@ package bookstore
 
 import "sort"
 
-// groupCost maps group size to its discounted price in cents.
-var groupCost = [6]int{0, 800, 1520, 2160, 2560, 3000}
-
-// Cost calculates the cheapest price for a basket of books.
+// Cost calculates the total cost in cents for a basket of books,
+// applying the best possible discount grouping.
 func Cost(books []int) int {
-	// Count frequency of each book (numbered 1-5).
+	// Count frequency of each book (books are numbered 1-5)
 	freq := make([]int, 5)
 	for _, b := range books {
 		freq[b-1]++
 	}
 
-	// Sort frequencies descending.
+	// Sort frequencies descending
 	sort.Sort(sort.Reverse(sort.IntSlice(freq)))
 
-	// Layer-peel: determine number of groups of each size.
-	// With sorted desc frequencies, groups of size k are formed by
-	// the difference between adjacent frequency levels.
-	var groups [6]int
-	for size := 1; size <= 5; size++ {
-		next := 0
-		if size <= 4 {
-			next = freq[size]
+	// Greedily form groups (largest possible each time)
+	var groups []int
+	for freq[0] > 0 {
+		size := 0
+		for i := 0; i < 5; i++ {
+			if freq[i] > 0 {
+				freq[i]--
+				size++
+			}
 		}
-		groups[size] = freq[size-1] - next
+		groups = append(groups, size)
+		// Re-sort after each extraction
+		sort.Sort(sort.Reverse(sort.IntSlice(freq)))
 	}
 
-	// Adjustment: two groups of 4 (5120) are cheaper than a 5+3 pair (5160).
-	pairs := groups[5]
-	if groups[3] < pairs {
-		pairs = groups[3]
+	// Calculate initial cost and count groups of 5 and 3
+	cost := 0
+	fives, threes := 0, 0
+	for _, g := range groups {
+		cost += groupCost(g)
+		switch g {
+		case 5:
+			fives++
+		case 3:
+			threes++
+		}
 	}
-	groups[5] -= pairs
-	groups[3] -= pairs
-	groups[4] += 2 * pairs
 
-	// Sum up the total cost.
-	total := 0
-	for size := 1; size <= 5; size++ {
-		total += groups[size] * groupCost[size]
+	// Optimize: each (5+3) → (4+4) conversion saves 40 cents
+	convert := fives
+	if threes < convert {
+		convert = threes
 	}
-	return total
+	cost -= convert * 40
+
+	return cost
+}
+
+func groupCost(n int) int {
+	switch n {
+	case 1:
+		return 800
+	case 2:
+		return 1520
+	case 3:
+		return 2160
+	case 4:
+		return 2560
+	case 5:
+		return 3000
+	default:
+		return 0
+	}
 }
