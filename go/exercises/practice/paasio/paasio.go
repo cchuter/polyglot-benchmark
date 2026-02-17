@@ -29,6 +29,10 @@ type readCounter struct {
 	counter
 }
 
+func NewReadCounter(r io.Reader) ReadCounter {
+	return &readCounter{r: r}
+}
+
 func (rc *readCounter) Read(p []byte) (int, error) {
 	n, err := rc.r.Read(p)
 	rc.addBytes(n)
@@ -44,6 +48,10 @@ type writeCounter struct {
 	counter
 }
 
+func NewWriteCounter(w io.Writer) WriteCounter {
+	return &writeCounter{w: w}
+}
+
 func (wc *writeCounter) Write(p []byte) (int, error) {
 	n, err := wc.w.Write(p)
 	wc.addBytes(n)
@@ -57,14 +65,6 @@ func (wc *writeCounter) WriteCount() (int64, int) {
 type rwCounter struct {
 	WriteCounter
 	ReadCounter
-}
-
-func NewReadCounter(r io.Reader) ReadCounter {
-	return &readCounter{r: r}
-}
-
-func NewWriteCounter(w io.Writer) WriteCounter {
-	return &writeCounter{w: w}
 }
 
 func NewReadWriteCounter(rw io.ReadWriter) ReadWriteCounter {
