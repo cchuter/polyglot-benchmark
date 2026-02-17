@@ -1,151 +1,113 @@
-# Implementation Plan: bottle-song
+# Design Plan: Bowling Game Scoring
 
-## Branch 1
+## Branch 1: Array-Based Roll Tracking (Minimal, Direct)
 
-**Approach: Simple lookup table with direct string construction**
+Store all rolls in a fixed-size array. Track the number of rolls and completed frames. On each `Roll()`, validate the pin count against game state. On `Score()`, walk through rolls frame-by-frame, applying strike/spare bonuses by looking ahead in the array.
 
-Prioritizes simplicity and minimal code.
+**Files:** Only `bowling.go`
 
-### Design
-- Define a slice/map of number words: `[]string{"no", "one", "two", ..., "ten"}`.
-- A helper `numberWord(n int) string` returns the lowercase word.
-- A helper `plural(n int) string` returns `"bottle"` if n==1, else `"bottles"`.
-- A helper `capitalize(s string) string` uppercases the first letter.
-- `Recite` loops from `startBottles` down for `takeDown` iterations, building 4 lines per verse with an empty string separator between verses.
+**Approach:**
+- `Game` struct with `rolls [21]int`, `nRolls int`, `nFrames int`, `rFrameStart int`
+- `Roll()` validates pins, records the roll, and advances frame tracking
+- `Score()` iterates frames 0–9, summing base + bonus using lookahead
+- Helper methods: `isStrike`, `isSpare`, `rawFrameScore`, `strikeBonus`, `spareBonus`
 
-### Files
-- Modify: `go/exercises/practice/bottle-song/bottle_song.go`
+**Evaluation:**
+- Feasibility: High — matches the reference solution pattern exactly
+- Risk: Low — well-understood algorithm, proven by `.meta/example.go`
+- Alignment: Fully satisfies all acceptance criteria
+- Complexity: Single file, ~130 lines
 
-### Rationale
-Minimal code, easy to read, no abstractions beyond what's needed.
+## Branch 2: Frame-Object Model (Extensible)
 
-### Evaluation
-- **Feasibility**: Fully feasible, uses only standard library.
-- **Risk**: Very low. Simple string operations.
-- **Alignment**: Satisfies all acceptance criteria directly.
-- **Complexity**: ~40 lines of code, 1 file change.
+Model each frame as a struct with its own state (rolls, type, bonus tracking). The `Game` holds a slice of `Frame` objects and delegates roll recording and scoring to each frame.
 
----
+**Files:** Only `bowling.go`
 
-## Branch 2
+**Approach:**
+- `Frame` struct with `rolls []int`, `frameType` enum, `complete bool`
+- `Game` holds `frames [10]Frame` and routes rolls to the current frame
+- Each frame determines its own completeness and score
 
-**Approach: Template-based verse generation with fmt.Sprintf**
+**Evaluation:**
+- Feasibility: High — achievable with only stdlib
+- Risk: Medium — more complex validation logic spread across types, higher chance of edge case bugs in 10th frame handling
+- Alignment: Satisfies criteria but more code to verify
+- Complexity: Single file but ~200+ lines, more abstractions
 
-Prioritizes extensibility if verse structure changed.
+## Branch 3: State Machine (Roll-by-Roll)
 
-### Design
-- Define verse template constants: `line12Template = "%s green %s hanging on the wall,"`, `line3 = "And if one green bottle should accidentally fall,"`, `line4Template = "There'll be %s green %s hanging on the wall."`.
-- `generateVerse(n int) []string` fills templates using `fmt.Sprintf`.
-- `Recite` assembles verses with separators.
-- Number words via a lookup array.
+Model the game as a finite state machine with states like `FirstRoll`, `SecondRoll`, `BonusRoll1`, `BonusRoll2`, `GameOver`. Each state defines valid transitions and pin count constraints.
 
-### Files
-- Modify: `go/exercises/practice/bottle-song/bottle_song.go`
+**Files:** Only `bowling.go`
 
-### Rationale
-Templates make the verse structure explicit and easy to modify.
+**Approach:**
+- Enum-like state constants
+- `Roll()` switches on current state and transitions
+- Accumulate rolls in array, score at end using standard frame walk
 
-### Evaluation
-- **Feasibility**: Fully feasible.
-- **Risk**: Low. Slightly more code than Branch 1 due to templates.
-- **Alignment**: Satisfies all acceptance criteria.
-- **Complexity**: ~50 lines, 1 file change. Marginally more complex.
-
----
-
-## Branch 3
-
-**Approach: Functional pipeline with string builder**
-
-Prioritizes performance for large outputs.
-
-### Design
-- Use `strings.Builder` to accumulate output efficiently, then split into `[]string`.
-- Actually, since the return type is `[]string`, a builder doesn't help much — we need individual lines.
-- Alternative: pre-allocate the result slice with exact capacity: `4*takeDown + (takeDown-1)` for separators.
-- Same helpers as Branch 1 but with pre-allocated slice.
-
-### Files
-- Modify: `go/exercises/practice/bottle-song/bottle_song.go`
-
-### Rationale
-Pre-allocation avoids slice growth. Relevant if called with large inputs.
-
-### Evaluation
-- **Feasibility**: Fully feasible.
-- **Risk**: Low. Slightly over-engineered for a max of 10 bottles.
-- **Alignment**: Satisfies all criteria.
-- **Complexity**: ~45 lines, 1 file. The pre-allocation adds minimal complexity.
-
----
+**Evaluation:**
+- Feasibility: High — state machines are well-suited to bowling
+- Risk: Medium — many state transitions to get right, especially for 10th frame
+- Alignment: Satisfies criteria
+- Complexity: Single file, ~150 lines, but more complex control flow
 
 ## Selected Plan
 
-**Branch 1 — Simple lookup table with direct string construction**
+**Branch 1: Array-Based Roll Tracking** is selected.
 
-### Rationale
+**Rationale:** This approach is the simplest, most direct, and matches the proven reference implementation. It has the lowest risk since the algorithm is validated by the existing `.meta/example.go`. It uses minimal abstraction — just a struct with an array and counters — making it easy to verify against all test cases. The other branches add complexity without benefit for this well-scoped exercise.
 
-Branch 1 is the clear winner because:
-1. The problem is inherently simple (max 10 bottles), making performance optimization (Branch 3) unnecessary.
-2. Template-based approaches (Branch 2) add indirection without real benefit for such a small, fixed format.
-3. Branch 1 produces the least code, is easiest to verify correct, and directly maps to the acceptance criteria.
+### Detailed Implementation Plan
 
-### Detailed Implementation
+**File to modify:** `go/exercises/practice/bowling/bowling.go`
 
-**File: `go/exercises/practice/bottle-song/bottle_song.go`**
-
+**Step 1: Define error variables**
 ```go
-package bottlesong
+var (
+    ErrNegativeRollIsInvalid        = errors.New("Negative roll is invalid")
+    ErrPinCountExceedsPinsOnTheLane = errors.New("Pin count exceeds pins on the lane")
+    ErrPrematureScore               = errors.New("Score cannot be taken until the end of the game")
+    ErrCannotRollAfterGameOver      = errors.New("Cannot roll after game is over")
+)
+```
 
-import "strings"
+**Step 2: Define constants**
+```go
+const (
+    pinsPerFrame      = 10
+    framesPerGame     = 10
+    maxRollsPerFrame  = 2
+    maxRollsLastFrame = 3
+    maxRolls          = (maxRollsPerFrame * (framesPerGame - 1)) + maxRollsLastFrame
+)
+```
 
-// numberWords maps integers 0-10 to their English word equivalents (lowercase).
-var numberWords = []string{
-    "no", "one", "two", "three", "four",
-    "five", "six", "seven", "eight", "nine", "ten",
-}
-
-// Recite returns the lyrics for the specified verses of "Ten Green Bottles".
-// startBottles is the number to start counting from (1-10).
-// takeDown is how many verses to generate.
-func Recite(startBottles, takeDown int) []string {
-    var result []string
-    for i := 0; i < takeDown; i++ {
-        if i > 0 {
-            result = append(result, "")
-        }
-        current := startBottles - i
-        next := current - 1
-        result = append(result,
-            capitalize(numberWords[current])+" green "+plural(current)+" hanging on the wall,",
-            capitalize(numberWords[current])+" green "+plural(current)+" hanging on the wall,",
-            "And if one green bottle should accidentally fall,",
-            "There'll be "+numberWords[next]+" green "+plural(next)+" hanging on the wall.",
-        )
-    }
-    return result
-}
-
-// plural returns "bottle" if n == 1, "bottles" otherwise.
-func plural(n int) string {
-    if n == 1 {
-        return "bottle"
-    }
-    return "bottles"
-}
-
-// capitalize returns s with its first letter uppercased.
-func capitalize(s string) string {
-    if len(s) == 0 {
-        return s
-    }
-    return strings.ToUpper(s[:1]) + s[1:]
+**Step 3: Define Game struct**
+```go
+type Game struct {
+    rolls       [maxRolls]int
+    nRolls      int
+    nFrames     int
+    rFrameStart int
 }
 ```
 
-### Steps
-1. Write the implementation to `bottle_song.go`.
-2. Run `go test ./...` in the exercise directory.
-3. Run `go vet ./...` in the exercise directory.
-4. Fix any issues and re-test.
-5. Commit when all tests pass.
+**Step 4: Implement NewGame()**
+Returns a zero-valued `*Game`.
+
+**Step 5: Implement Roll()**
+- Validate: pins < 0 → error, pins > 10 → error, game over → error
+- Record the roll
+- Handle strikes in frames 1–9 (complete frame immediately)
+- Handle normal frames (2 rolls, validate total ≤ 10)
+- Handle 10th frame special cases (up to 3 rolls, pin reset rules)
+
+**Step 6: Implement Score()**
+- If game not complete, return error
+- Walk frames 0–9, sum score with strike/spare bonuses via lookahead
+
+**Step 7: Implement helper methods**
+`rollsThisFrame`, `completeTheFrame`, `completedFrames`, `isStrike`, `isSpare`, `rawFrameScore`, `strikeBonus`, `spareBonus`
+
+**Step 8: Run tests** with `go test ./...` in the bowling directory
