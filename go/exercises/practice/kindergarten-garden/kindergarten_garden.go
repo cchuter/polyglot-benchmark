@@ -21,6 +21,9 @@ func NewGarden(diagram string, children []string) (*Garden, error) {
 	if len(rows[1]) != len(rows[2]) {
 		return nil, errors.New("diagram rows must be same length")
 	}
+	if len(rows[1])%2 != 0 {
+		return nil, errors.New("each diagram row must have even number of cups")
+	}
 	if len(rows[1]) != 2*len(children) {
 		return nil, errors.New("each diagram row must have two cups per child")
 	}
@@ -35,7 +38,7 @@ func NewGarden(diagram string, children []string) (*Garden, error) {
 	}
 	for _, row := range rows[1:] {
 		for nx, n := range alpha {
-			for cx := range rows[1:] {
+			for cx := range rows[1:] { // iterates 0, 1 — the two cup positions
 				var p string
 				switch row[2*nx+cx] {
 				case 'G':
