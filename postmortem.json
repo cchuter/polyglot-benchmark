@@ -1,0 +1,20 @@
+{
+  "issue_number": 313,
+  "outcome": "success",
+  "failure_mode": null,
+  "iterations_used": 1,
+  "plan_review_verdict": "pass",
+  "codex_review_verdict": "pass",
+  "verification_verdict": "pass",
+  "files_changed": [],
+  "phases_reached": [
+    "pending",
+    "goal",
+    "designing",
+    "implementing",
+    "done"
+  ],
+  "planning_mode": "debate",
+  "topology": "default",
+  "timestamp": "2026-02-17T05:35:36Z"
+}
