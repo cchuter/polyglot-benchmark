@@ -3,225 +3,182 @@ package alphametics
 import (
 	"errors"
 	"strings"
-	"unicode"
 )
 
-var decDigits = []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
-
-type problem struct {
-	vDigits      [][]rune
-	maxDigits    int
-	letterValues [26]int
-	lettersUsed  []rune
-	nLetters     int
-	isLeading    [26]bool
-}
-
+// Solve solves an alphametics puzzle and returns a map of letter-to-digit assignments.
 func Solve(puzzle string) (map[string]int, error) {
-	p := parsePuzzle(puzzle)
-	if p == nil {
+	// Parse puzzle: split on "==" to get LHS and RHS
+	parts := strings.SplitN(puzzle, "==", 2)
+	if len(parts) != 2 {
 		return nil, errors.New("invalid puzzle")
 	}
-	return p.solvePuzzle()
-}
 
-// parsePuzzle parses the puzzle input into a problem for solving.
-func parsePuzzle(puzzle string) (p *problem) {
-	var valueStrings []string
-	p = new(problem)
-	fields := strings.Fields(puzzle)
-	for _, field := range fields {
-		if field == "+" || field == "==" {
-			continue
-		} else {
-			valueStrings = append(valueStrings, field)
-			if len(field) > p.maxDigits {
-				p.maxDigits = len(field)
+	// Extract addend words from LHS (split on "+")
+	lhsParts := strings.Split(parts[0], "+")
+	var words []string
+	for _, p := range lhsParts {
+		w := strings.TrimSpace(p)
+		if w != "" {
+			words = append(words, w)
+		}
+	}
+	result := strings.TrimSpace(parts[1])
+	if result == "" || len(words) == 0 {
+		return nil, errors.New("invalid puzzle")
+	}
+
+	// Collect unique letters and identify leading letters
+	letterSet := make(map[byte]bool)
+	leadingSet := make(map[byte]bool)
+
+	for _, w := range words {
+		for i := 0; i < len(w); i++ {
+			letterSet[w[i]] = true
+		}
+		if len(w) > 1 {
+			leadingSet[w[0]] = true
+		}
+	}
+	for i := 0; i < len(result); i++ {
+		letterSet[result[i]] = true
+	}
+	if len(result) > 1 {
+		leadingSet[result[0]] = true
+	}
+
+	// Build ordered list of unique letters
+	letters := make([]byte, 0, len(letterSet))
+	for ch := range letterSet {
+		letters = append(letters, ch)
+	}
+
+	if len(letters) > 10 {
+		return nil, errors.New("too many unique letters")
+	}
+
+	// Compute coefficients for each letter
+	coeffs := make(map[byte]int)
+	for _, w := range words {
+		pow := 1
+		for i := len(w) - 1; i >= 0; i-- {
+			coeffs[w[i]] += pow
+			pow *= 10
+		}
+	}
+	pow := 1
+	for i := len(result) - 1; i >= 0; i-- {
+		coeffs[result[i]] -= pow
+		pow *= 10
+	}
+
+	// Sort letters by descending absolute coefficient for better pruning
+	for i := 0; i < len(letters)-1; i++ {
+		for j := i + 1; j < len(letters); j++ {
+			ai := coeffs[letters[i]]
+			if ai < 0 {
+				ai = -ai
 			}
-			// Mark leading letter of multi-digit words
-			if len(field) > 1 {
-				p.isLeading[field[0]-'A'] = true
+			aj := coeffs[letters[j]]
+			if aj < 0 {
+				aj = -aj
 			}
-			for _, r := range field {
-				if !unicode.IsUpper(r) {
-					return nil
+			if aj > ai {
+				letters[i], letters[j] = letters[j], letters[i]
+			}
+		}
+	}
+
+	// Build arrays for the solver
+	n := len(letters)
+	coeffArr := make([]int, n)
+	isLeading := make([]bool, n)
+	for i, ch := range letters {
+		coeffArr[i] = coeffs[ch]
+		isLeading[i] = leadingSet[ch]
+	}
+
+	// Backtracking solver
+	assignment := make([]int, n)
+	used := uint16(0) // bitmask for digits 0-9
+
+	// computeBounds returns the min and max possible sum contribution
+	// from letters at indices [from, n) given the current used bitmask.
+	computeBounds := func(from int, usedMask uint16) (int, int) {
+		minRem, maxRem := 0, 0
+		for i := from; i < n; i++ {
+			c := coeffArr[i]
+			lo := 0
+			if isLeading[i] {
+				lo = 1
+			}
+			minC, maxC := 0, 0
+			first := true
+			for d := lo; d <= 9; d++ {
+				if usedMask&(1<<uint(d)) != 0 {
+					continue
 				}
-				v := r - 'A'
-				p.letterValues[v] = -1
-			}
-		}
-	}
-	// Count the letters used.
-	for v := 0; v < len(p.letterValues); v++ {
-		if p.letterValues[v] == -1 {
-			p.nLetters++
-		}
-	}
-	p.vDigits = make([][]rune, len(valueStrings))
-	for i := range valueStrings {
-		p.vDigits[i] = make([]rune, p.maxDigits)
-		for d, r := range valueStrings[i] {
-			j := len(valueStrings[i]) - 1 - d
-			// Each vDigits value is 0 for nothing in this position,
-			// or 1..26 for 'A'..'Z'.
-			p.vDigits[i][j] = r - 'A' + 1
-		}
-	}
-	// Make a list of the letters used, where 0 == 'A'
-	p.lettersUsed = make([]rune, p.nLetters)
-	for n, v := 0, 0; v < len(p.letterValues); v++ {
-		if p.letterValues[v] == -1 {
-			p.lettersUsed[n] = rune(v) // 0 == 'A'
-			n++
-		}
-	}
-	return p
-}
-
-func (p *problem) solvePuzzle() (map[string]int, error) {
-	for _, digValues := range permutations(decDigits, p.nLetters) {
-		// Assign values to letters for the leading zero check
-		for i, r := range p.lettersUsed {
-			p.letterValues[r] = digValues[i]
-		}
-		// Check leading zeros for ALL multi-digit words before expensive arithmetic
-		leadingZero := false
-		for v := 0; v < 26; v++ {
-			if p.isLeading[v] && p.letterValues[v] == 0 {
-				leadingZero = true
-				break
-			}
-		}
-		if leadingZero {
-			continue
-		}
-		if p.isPuzzleSolution(digValues) {
-			return p.puzzleMap(), nil
-		}
-	}
-	return nil, errors.New("no solution")
-}
-
-// isPuzzleSolution returns true if the values work out as a solution.
-func (p *problem) isPuzzleSolution(values []int) bool {
-	// Put the candidate values into the letterValues for the lettersUsed.
-	for i, r := range p.lettersUsed {
-		p.letterValues[r] = values[i]
-	}
-	// For each column up to maxDigits
-	// check that the sum of the digits corresponding to values in vDigits
-	// add up to the digits (modulo 10) of values in last row.
-	carry := 0
-	for d := 0; d < p.maxDigits; d++ {
-		// Get initial sum for the digits for this column of vDigits
-		r := p.vDigits[0][d]
-		sum := carry
-		if r != 0 {
-			// There's a character in this position.
-			sum += p.letterValues[r-1]
-		}
-		// Sum remaining rows for this column.
-		for n := 1; n < len(p.vDigits)-1; n++ {
-			r = p.vDigits[n][d]
-			if r != 0 {
-				// There's a character in this position.
-				sum += p.letterValues[r-1]
-			}
-		}
-		carry = sum / 10
-		sum %= 10
-		// Check the result sum against the answer row digit.
-		r = p.vDigits[len(p.vDigits)-1][d]
-		if r == 0 || sum != p.letterValues[r-1] {
-			return false
-		}
-	}
-	return carry == 0
-}
-
-// puzzleMap creates a "by letter" map from the letterValues used.
-func (p *problem) puzzleMap() map[string]int {
-	pm := make(map[string]int, p.nLetters)
-	for _, v := range p.lettersUsed {
-		r := v + 'A'
-		s := string(r)
-		pm[s] = p.letterValues[v]
-	}
-	return pm
-}
-
-// permutations returns a slice containing the r length permutations of the elements in iterable.
-// The implementation is modeled after the Python itertools.permutations().
-func permutations(iterable []int, r int) (perms [][]int) {
-	pool := iterable
-	n := len(pool)
-	nperm := 1
-	for i := n; i > 1; i-- {
-		nperm *= i
-	}
-	if r < n {
-		d := 1
-		for i := (n - r); i > 1; i-- {
-			d *= i
-		}
-		nperm /= d
-	}
-	perms = make([][]int, 0, nperm)
-
-	if r > n {
-		return
-	}
-
-	indices := make([]int, n)
-	for i := range indices {
-		indices[i] = i
-	}
-
-	cycles := make([]int, r)
-	for i := range cycles {
-		cycles[i] = n - i
-	}
-
-	result := make([]int, r)
-	for i, el := range indices[:r] {
-		result[i] = pool[el]
-	}
-
-	p := make([]int, len(result))
-	copy(p, result)
-	perms = append(perms, p)
-
-	for n > 0 {
-		i := r - 1
-		for ; i >= 0; i-- {
-			cycles[i]--
-			if cycles[i] == 0 {
-				index := indices[i]
-				for j := i; j < n-1; j++ {
-					indices[j] = indices[j+1]
+				v := c * d
+				if first {
+					minC, maxC = v, v
+					first = false
 				}
-				indices[n-1] = index
-				cycles[i] = n - i
-			} else {
-				j := cycles[i]
-				indices[i], indices[n-j] = indices[n-j], indices[i]
-
-				for k := i; k < r; k++ {
-					result[k] = pool[indices[k]]
+				if v < minC {
+					minC = v
 				}
-
-				p = make([]int, len(result))
-				copy(p, result)
-				perms = append(perms, p)
-
-				break
+				if v > maxC {
+					maxC = v
+				}
 			}
+			minRem += minC
+			maxRem += maxC
 		}
-
-		if i < 0 {
-			return
-		}
-
+		return minRem, maxRem
 	}
-	return
+
+	var solve func(idx int, partialSum int) bool
+	solve = func(idx int, partialSum int) bool {
+		if idx == n {
+			return partialSum == 0
+		}
+
+		lo := 0
+		if isLeading[idx] {
+			lo = 1
+		}
+		for d := lo; d <= 9; d++ {
+			if used&(1<<uint(d)) != 0 {
+				continue
+			}
+			newSum := partialSum + coeffArr[idx]*d
+
+			// Prune: check if remaining letters can bring sum to zero
+			if idx < n-1 {
+				used |= 1 << uint(d)
+				minRem, maxRem := computeBounds(idx+1, used)
+				used &^= 1 << uint(d)
+				if newSum+minRem > 0 || newSum+maxRem < 0 {
+					continue
+				}
+			}
+
+			assignment[idx] = d
+			used |= 1 << uint(d)
+			if solve(idx+1, newSum) {
+				return true
+			}
+			used &^= 1 << uint(d)
+		}
+		return false
+	}
+
+	if !solve(0, 0) {
+		return nil, errors.New("no solution")
+	}
+
+	// Build result map
+	resultMap := make(map[string]int, n)
+	for i, ch := range letters {
+		resultMap[string(ch)] = assignment[i]
+	}
+	return resultMap, nil
 }
