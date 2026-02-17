@@ -9,19 +9,19 @@ import (
 )
 
 type Entry struct {
-	Date        string
+	Date        string // "Y-m-d"
 	Description string
-	Change      int
+	Change      int // in cents
 }
 
 func FormatLedger(currency, locale string, entries []Entry) (string, error) {
 	symbol, found := currencySymbols[currency]
 	if !found {
-		return "", fmt.Errorf("Invalid or unknown currency %q", currency)
+		return "", fmt.Errorf("invalid or unknown currency %q", currency)
 	}
 	locInfo, found := locales[locale]
 	if !found {
-		return "", fmt.Errorf("Invalid or unknown locale %q", locale)
+		return "", fmt.Errorf("invalid or unknown locale %q", locale)
 	}
 	entriesCopy := make([]Entry, len(entries))
 	copy(entriesCopy, entries)
@@ -146,8 +146,14 @@ func moneyToString(cents int, thousandsSep, decimalSep string) string {
 
 type entrySlice []Entry
 
-func (e entrySlice) Len() int      { return len(e) }
-func (e entrySlice) Swap(i, j int) { e[i], e[j] = e[j], e[i] }
+func (e entrySlice) Len() int {
+	return len(e)
+}
+
+func (e entrySlice) Swap(i, j int) {
+	e[i], e[j] = e[j], e[i]
+}
+
 func (e entrySlice) Less(i, j int) bool {
 	if e[i].Date != e[j].Date {
 		return e[i].Date < e[j].Date
