@@ -3,16 +3,40 @@ package dominoes
 // Domino represents a domino tile with two sides.
 type Domino [2]int
 
-// MakeChain attempts to arrange dominoes into a valid chain.
+// MakeChain attempts to arrange the input dominoes into a valid chain.
 func MakeChain(input []Domino) (chain []Domino, ok bool) {
-	if len(input) == 0 {
+	switch len(input) {
+	case 0:
 		return []Domino{}, true
+	case 1:
+		if input[0][0] == input[0][1] {
+			return input, true
+		}
+		return nil, false
 	}
 
-	// Check necessary conditions for Euler circuit:
-	// 1. All vertices must have even degree
-	// 2. The graph must be connected (considering only vertices that appear)
+	if !canChain(input) {
+		return nil, false
+	}
 
+	chain = make([]Domino, len(input))
+	used := make([]bool, len(input))
+	// Place first domino
+	chain[0] = input[0]
+	used[0] = true
+	if solve(chain, used, input, 1) {
+		return chain, true
+	}
+	// Try first domino flipped
+	chain[0] = Domino{input[0][1], input[0][0]}
+	if solve(chain, used, input, 1) {
+		return chain, true
+	}
+	return nil, false
+}
+
+// canChain checks Euler circuit preconditions: even degree + connectivity.
+func canChain(input []Domino) bool {
 	degree := map[int]int{}
 	for _, d := range input {
 		degree[d[0]]++
@@ -20,15 +44,15 @@ func MakeChain(input []Domino) (chain []Domino, ok bool) {
 	}
 	for _, deg := range degree {
 		if deg%2 != 0 {
-			return nil, false
+			return false
 		}
 	}
 
-	// Check connectivity using Union-Find
+	// Connectivity check via union-find
 	parent := map[int]int{}
 	var find func(int) int
 	find = func(x int) int {
-		if _, exists := parent[x]; !exists {
+		if _, ok := parent[x]; !ok {
 			parent[x] = x
 		}
 		if parent[x] != x {
@@ -42,63 +66,42 @@ func MakeChain(input []Domino) (chain []Domino, ok bool) {
 			parent[ra] = rb
 		}
 	}
-
 	for _, d := range input {
 		union(d[0], d[1])
 	}
-
-	// All vertices must be in the same component
-	var root int
-	first := true
+	root := find(input[0][0])
 	for v := range degree {
-		if first {
-			root = find(v)
-			first = false
-		} else if find(v) != root {
-			return nil, false
+		if find(v) != root {
+			return false
 		}
 	}
+	return true
+}
 
-	// Build chain via backtracking
-	used := make([]bool, len(input))
-	chain = make([]Domino, 0, len(input))
-
-	var solve func() bool
-	solve = func() bool {
-		if len(chain) == len(input) {
-			return chain[0][0] == chain[len(chain)-1][1]
-		}
-		for i, d := range input {
-			if used[i] {
-				continue
-			}
-			used[i] = true
-			// Try normal orientation
-			if len(chain) == 0 || chain[len(chain)-1][1] == d[0] {
-				chain = append(chain, d)
-				if solve() {
-					return true
-				}
-				chain = chain[:len(chain)-1]
-			}
-			// Try flipped orientation (skip for self-loops)
-			if d[0] != d[1] {
-				flipped := Domino{d[1], d[0]}
-				if len(chain) == 0 || chain[len(chain)-1][1] == flipped[0] {
-					chain = append(chain, flipped)
-					if solve() {
-						return true
-					}
-					chain = chain[:len(chain)-1]
-				}
-			}
-			used[i] = false
-		}
-		return false
+// solve uses backtracking to build the chain from position pos onward.
+func solve(chain []Domino, used []bool, input []Domino, pos int) bool {
+	if pos == len(input) {
+		return chain[0][0] == chain[pos-1][1]
 	}
-
-	if solve() {
-		return chain, true
+	end := chain[pos-1][1]
+	for i, d := range input {
+		if used[i] {
+			continue
+		}
+		used[i] = true
+		if d[0] == end {
+			chain[pos] = d
+			if solve(chain, used, input, pos+1) {
+				return true
+			}
+		}
+		if d[1] == end && d[0] != d[1] {
+			chain[pos] = Domino{d[1], d[0]}
+			if solve(chain, used, input, pos+1) {
+				return true
+			}
+		}
+		used[i] = false
 	}
-	return nil, false
+	return false
 }
