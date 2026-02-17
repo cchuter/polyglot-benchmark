@@ -1,80 +1,90 @@
 package connect
 
-import "errors"
-
-type point struct {
+type coord struct {
 	row, col int
 }
 
-func ResultOf(lines []string) (string, error) {
-	if len(lines) == 0 {
-		return "", errors.New("empty board")
-	}
-	if len(lines[0]) == 0 {
-		return "", errors.New("empty first line")
-	}
-	if hasWon(lines, 'X') {
-		return "X", nil
-	}
-	if hasWon(lines, 'O') {
-		return "O", nil
-	}
-	return "", nil
+type board struct {
+	height int
+	width  int
+	cells  []string
 }
 
-func hasWon(lines []string, player byte) bool {
-	rows := len(lines)
-	cols := len(lines[0])
-	visited := make(map[point]bool)
-	queue := []point{}
+func newBoard(lines []string) board {
+	h := len(lines)
+	w := 0
+	if h > 0 {
+		w = len(lines[0])
+	}
+	return board{height: h, width: w, cells: lines}
+}
 
-	if player == 'X' {
-		for r := 0; r < rows; r++ {
-			if lines[r][0] == player {
-				p := point{r, 0}
-				queue = append(queue, p)
-				visited[p] = true
-			}
-		}
-	} else {
-		for c := 0; c < cols; c++ {
-			if lines[0][c] == player {
-				p := point{0, c}
-				queue = append(queue, p)
-				visited[p] = true
-			}
+func (b *board) at(c coord) byte {
+	return b.cells[c.row][c.col]
+}
+
+func (b *board) valid(c coord) bool {
+	return c.row >= 0 && c.row < b.height && c.col >= 0 && c.col < b.width
+}
+
+func (b *board) neighbors(c coord) []coord {
+	dirs := [6]coord{
+		{0, 1}, {0, -1}, {1, 0}, {-1, 0}, {-1, 1}, {1, -1},
+	}
+	result := make([]coord, 0, 6)
+	for _, d := range dirs {
+		n := coord{c.row + d.row, c.col + d.col}
+		if b.valid(n) {
+			result = append(result, n)
 		}
 	}
+	return result
+}
 
-	for len(queue) > 0 {
-		cur := queue[0]
-		queue = queue[1:]
-		if player == 'X' && cur.col == cols-1 {
+func (b *board) dfs(c coord, color byte, visited map[coord]bool) bool {
+	if !b.valid(c) || visited[c] || b.at(c) != color {
+		return false
+	}
+	visited[c] = true
+	if color == 'X' && c.col == b.width-1 {
+		return true
+	}
+	if color == 'O' && c.row == b.height-1 {
+		return true
+	}
+	for _, n := range b.neighbors(c) {
+		if b.dfs(n, color, visited) {
 			return true
-		}
-		if player == 'O' && cur.row == rows-1 {
-			return true
-		}
-		for _, nb := range neighbors(cur, rows, cols) {
-			if !visited[nb] && lines[nb.row][nb.col] == player {
-				visited[nb] = true
-				queue = append(queue, nb)
-			}
 		}
 	}
 	return false
 }
 
-func neighbors(p point, rows, cols int) []point {
-	deltas := [6]point{
-		{0, 1}, {0, -1}, {1, 0}, {-1, 0}, {1, -1}, {-1, 1},
+// ResultOf determines the winner of a Hex board game.
+// Returns "X" if X connects left to right, "O" if O connects top to bottom, or "" if no winner.
+func ResultOf(lines []string) (string, error) {
+	b := newBoard(lines)
+	if b.height == 0 || b.width == 0 {
+		return "", nil
 	}
-	result := make([]point, 0, 6)
-	for _, d := range deltas {
-		nr, nc := p.row+d.row, p.col+d.col
-		if nr >= 0 && nr < rows && nc >= 0 && nc < cols {
-			result = append(result, point{nr, nc})
+
+	// Check if X wins (left to right)
+	visited := make(map[coord]bool)
+	for row := 0; row < b.height; row++ {
+		c := coord{row, 0}
+		if b.at(c) == 'X' && b.dfs(c, 'X', visited) {
+			return "X", nil
 		}
 	}
-	return result
+
+	// Check if O wins (top to bottom)
+	visited = make(map[coord]bool)
+	for col := 0; col < b.width; col++ {
+		c := coord{0, col}
+		if b.at(c) == 'O' && b.dfs(c, 'O', visited) {
+			return "O", nil
+		}
+	}
+
+	return "", nil
 }
