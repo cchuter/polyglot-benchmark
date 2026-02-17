@@ -1,208 +1,135 @@
-# Implementation Plan: polyglot-go-matrix
+# Implementation Plan: polyglot-go-octal
 
-## Proposal A: Matrix as a Named Slice Type
+## Proposal A (Proponent)
 
-**Role: Proponent**
+**Approach: Iterate with bit-shifting (matching the reference solution pattern)**
 
-### Approach
+Implement `ParseOctal` by iterating through each character of the input string left-to-right. For each character, validate it is in the range '0'-'7'. If valid, left-shift the accumulator by 3 bits (equivalent to multiplying by 8) and add the digit value. If any character is invalid, return `(0, error)`.
 
-Define `Matrix` as a named slice type `type Matrix [][]int`. This is the simplest possible representation — the Matrix *is* the data.
+### Files to modify
+- `go/exercises/practice/octal/octal.go` — add `ParseOctal` function and `fmt` import
 
-### Files to Modify
-
-- `go/exercises/practice/matrix/matrix.go` — implement the full solution
-
-### Design
-
+### Implementation
 ```go
-type Matrix [][]int
+package octal
 
-func New(s string) (Matrix, error) { ... }
-func (m Matrix) Rows() [][]int { ... }
-func (m Matrix) Cols() [][]int { ... }
-func (m Matrix) Set(row, col, val int) bool { ... }
+import "fmt"
+
+func ParseOctal(input string) (int64, error) {
+    num := int64(0)
+    for _, r := range input {
+        if r < '0' || r > '7' {
+            return 0, fmt.Errorf("invalid octal digit: %c", r)
+        }
+        num = num<<3 + int64(r-'0')
+    }
+    return num, nil
+}
 ```
 
 ### Rationale
+- Matches the reference solution in `.meta/example.go` almost exactly
+- Bit-shifting (`<<3`) is idiomatic for powers-of-2 base conversions
+- Simple, minimal, single-pass O(n) algorithm
+- Uses `fmt.Errorf` which is standard library only
+- Uses `range` over string which iterates runes (handles UTF-8 correctly, though all valid inputs are ASCII)
 
-- **Simplicity**: No struct wrapper, no indirection. The type *is* the data.
-- **Nilability**: Slices are inherently nilable, so `var matrix Matrix` is nil and `matrix == nil` works.
-- **Set works with value receiver**: Since slice headers share the underlying array, `m[r][c] = val` modifies the actual data even through a value receiver. No pointer receiver needed.
-- **Deep copy for Rows/Cols**: Allocate new slices and copy element-by-element.
-- **Minimal code**: Fewest lines, easiest to read.
-
-### Parsing Logic
-
-1. Split input string by `"\n"` into row strings
-2. For each row string, trim leading/trailing spaces, split by whitespace
-3. Validate: no empty rows, all rows same length, all values parseable as int
-4. Convert each value via `strconv.Atoi`
-
-### Weaknesses Addressed
-
-- Value receiver on `Set` works because slices share underlying storage. This is idiomatic Go for slice-based types.
+### Strengths
+- Proven correct (matches reference)
+- Minimal code, easy to understand
+- No unnecessary abstractions
 
 ---
 
-## Proposal B: Matrix as a Struct with Pointer Semantics
+## Proposal B (Opponent)
 
-**Role: Opponent**
+**Approach: Explicit multiplication with `errors.New` and index-based loop**
 
-### Approach
+Implement `ParseOctal` by iterating through the string using byte indexing. Validate each byte, multiply accumulator by 8 (explicit multiplication), and add digit value. Use `errors.New` for the error.
 
-Define `Matrix` as a pointer to a struct that holds the data. Use an unexported struct with an exported pointer type alias, or use an interface.
+### Files to modify
+- `go/exercises/practice/octal/octal.go` — add `ParseOctal` function and `errors` import
 
-### Option B1: Pointer to struct
-
-The test benchmark uses `var matrix Matrix` and then `matrix == nil`. If `Matrix` is a struct, this can't be nil. So we'd need `Matrix` to be `*matrixData`:
-
+### Implementation
 ```go
-type matrixData struct {
-    data [][]int
-}
-type Matrix = *matrixData
-```
+package octal
 
-But Go doesn't allow methods on type aliases of pointer types. So this doesn't work directly.
+import "errors"
 
-### Option B2: Interface
-
-```go
-type Matrix interface {
-    Rows() [][]int
-    Cols() [][]int
-    Set(row, col, val int) bool
-}
-
-type matrix struct {
-    data [][]int
+func ParseOctal(input string) (int64, error) {
+    var result int64
+    for i := 0; i < len(input); i++ {
+        d := input[i]
+        if d < '0' || d > '7' {
+            return 0, errors.New("invalid octal input")
+        }
+        result = result*8 + int64(d-'0')
+    }
+    return result, nil
 }
 ```
-
-### Rationale for B2
-
-- **Encapsulation**: Internal data is hidden behind an interface. Users can't accidentally access `m[0][0]` directly.
-- **Pointer semantics guaranteed**: `Set` modifies through a `*matrix` receiver, no ambiguity.
-- **Flexibility**: Could swap implementations.
 
 ### Critique of Proposal A
+- Using `fmt.Errorf` pulls in the heavier `fmt` package when `errors.New` suffices
+- Using `range` iterates runes which adds unnecessary complexity for what is guaranteed to be ASCII-only input
+- Bit-shifting is slightly less readable than explicit `*8` for someone unfamiliar with the idiom
 
-- Relying on value-receiver-modifying-underlying-data for `Set` is subtle. Someone reading the code might expect a value receiver to not mutate.
-- The `Matrix` type being `[][]int` means callers could bypass methods and index directly.
+### Strengths of Proposal B
+- `errors.New` is lighter weight than `fmt.Errorf`
+- Byte indexing is more explicit about what we're doing (all valid octal chars are single-byte ASCII)
+- `result*8` is clearer about the mathematical operation
 
 ### Weaknesses of Proposal B
-
-- More code: need both an interface and a struct type.
-- Over-engineered for a simple exercise.
-- The interface approach adds abstraction where none is needed.
+- `errors.New` gives a less informative error message (no character info)
+- Byte indexing vs range is a minor stylistic difference with no practical impact
+- `*8` vs `<<3` compiles to the same instruction; readability is subjective
 
 ---
 
-## Selected Plan
-
-**Role: Judge**
+## Selected Plan (Judge)
 
 ### Evaluation
 
-| Criterion    | Proposal A (Slice)    | Proposal B (Interface) |
-|-------------|----------------------|----------------------|
-| Correctness | Fully satisfies all test requirements. Slice nilability, value receiver Set, deep copy Rows/Cols all work correctly. | Also correct, but more complex setup. |
-| Risk        | Low. Slice-as-type is well-established Go pattern. | Low, but more surface area for bugs in the interface/struct split. |
-| Simplicity  | Minimal code, single type, no indirection. | More types, more indirection, more code. |
-| Consistency | Matches the exercise's minimalist stub (`package matrix` with no existing types). | Over-engineered for the codebase convention of simple exercise solutions (see `ledger.go`). |
+| Criterion     | Proposal A              | Proposal B              |
+|---------------|-------------------------|-------------------------|
+| Correctness   | Fully correct           | Fully correct           |
+| Risk          | Minimal                 | Minimal                 |
+| Simplicity    | Very simple             | Very simple             |
+| Consistency   | Matches reference exactly | Slightly diverges      |
 
-### Decision
+Both proposals are correct and minimal. The differences are trivial:
+- `fmt.Errorf` vs `errors.New`: The test only checks `err != nil`, so error message content doesn't matter. However, `fmt.Errorf` gives better debugging info.
+- `<<3` vs `*8`: Both compile identically. The reference uses `<<3`.
+- `range` vs byte indexing: Both work correctly for ASCII input.
 
-**Proposal A wins.** The named slice type is the simplest, most idiomatic approach. It satisfies all test requirements with minimal code. The value-receiver-modifies-underlying-data behavior is well-understood in Go for slice types and is not a "gotcha" — it's how slices work by design.
+**Winner: Proposal A**, because it matches the reference solution pattern exactly, which reduces risk and is consistent with the codebase's existing example. The `fmt` import is negligible overhead.
 
 ### Final Implementation Plan
 
-**File**: `go/exercises/practice/matrix/matrix.go`
+**File: `go/exercises/practice/octal/octal.go`**
+
+Replace the stub with:
 
 ```go
-package matrix
+package octal
 
-import (
-    "fmt"
-    "strconv"
-    "strings"
-)
+import "fmt"
 
-// Matrix represents a matrix of integers as a 2D slice.
-type Matrix [][]int
-
-// New parses a string representation of a matrix into a Matrix.
-func New(s string) (Matrix, error) {
-    lines := strings.Split(s, "\n")
-    m := make(Matrix, len(lines))
-    var numCols int
-    for i, line := range lines {
-        fields := strings.Fields(line)
-        if len(fields) == 0 {
-            return nil, fmt.Errorf("row %d is empty", i)
+func ParseOctal(input string) (int64, error) {
+    num := int64(0)
+    for _, r := range input {
+        if r < '0' || r > '7' {
+            return 0, fmt.Errorf("invalid octal digit: %c", r)
         }
-        if i == 0 {
-            numCols = len(fields)
-        } else if len(fields) != numCols {
-            return nil, fmt.Errorf("row %d has %d columns, expected %d", i, len(fields), numCols)
-        }
-        row := make([]int, len(fields))
-        for j, field := range fields {
-            val, err := strconv.Atoi(field)
-            if err != nil {
-                return nil, fmt.Errorf("invalid value %q at row %d, col %d: %w", field, i, j, err)
-            }
-            row[j] = val
-        }
-        m[i] = row
+        num = num<<3 + int64(r-'0')
     }
-    return m, nil
-}
-
-// Rows returns a deep copy of all rows.
-func (m Matrix) Rows() [][]int {
-    result := make([][]int, len(m))
-    for i, row := range m {
-        result[i] = make([]int, len(row))
-        copy(result[i], row)
-    }
-    return result
-}
-
-// Cols returns a deep copy of all columns.
-func (m Matrix) Cols() [][]int {
-    if len(m) == 0 {
-        return nil
-    }
-    numCols := len(m[0])
-    result := make([][]int, numCols)
-    for j := 0; j < numCols; j++ {
-        col := make([]int, len(m))
-        for i := range m {
-            col[i] = m[i][j]
-        }
-        result[j] = col
-    }
-    return result
-}
-
-// Set sets the value at (row, col). Returns false if out of bounds.
-func (m Matrix) Set(row, col, val int) bool {
-    if row < 0 || row >= len(m) {
-        return false
-    }
-    if col < 0 || col >= len(m[row]) {
-        return false
-    }
-    m[row][col] = val
-    return true
+    return num, nil
 }
 ```
 
 ### Steps
-
-1. Write the implementation to `matrix.go`
-2. Run `go test ./...` in the matrix directory
-3. Run `go vet ./...` in the matrix directory
-4. Fix any issues
-5. Commit
+1. Create feature branch `issue-353`
+2. Write the implementation to `octal.go`
+3. Run `go test ./...` from the octal exercise directory
+4. Run `go vet ./...`
+5. Commit with descriptive message
