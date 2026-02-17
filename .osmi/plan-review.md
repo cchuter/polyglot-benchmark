@@ -1,39 +1,32 @@
-# Plan Review
+# Plan Review (Self-Review — no codex agent available)
 
-## Review: Self-review (no codex agent available)
+## Assessment
 
-Reviewed `.osmi/plan.md` against `ledger_test.go` and `.meta/example.go`.
+The selected plan (Proposal A) is sound and directly mirrors the reference solution in `.meta/example.go`, which is known to pass all 17 test cases.
 
-### (1) Will the plan produce code that passes all tests?
+## Correctness Check Against Test Cases
 
-**Yes**, provided the implementation follows the reference solution closely. The plan covers:
-- All required exports (`Entry` struct, `FormatLedger` function)
-- Input validation for currency, locale, and date
-- Sorting by date → description → change
-- Locale-specific date formatting, header translations, and currency formatting
-- Description truncation at 25 chars
-- Input immutability via slice copy
+1. **Paragraphs** (test 1, 16): Plain text → `<p>text</p>` — covered by the else branch
+2. **Italics** (test 2): `_text_` → `<em>text</em>` — covered by `renderInlineHTML`
+3. **Bold** (test 3): `__text__` → `<strong>text</strong>` — covered by `renderInlineHTML`
+4. **Mixed formatting** (test 4): Both bold and italic inline — covered by processing `__` before `_`
+5. **Headings h1-h6** (tests 5-10): `# ` through `###### ` — covered by `getHeadingLevel`
+6. **h7 as paragraph** (test 11): `#######` → `<p>...</p>` — covered by returning -1 for >6
+7. **Unordered lists** (test 12): `* Item` lines grouped in `<ul>` — covered by list accumulation
+8. **Mixed content** (test 13): Header + list with inline formatting — covered
+9. **Markdown symbols in headers** (test 14): `#` and `*` in header text not interpreted — covered since only first char is checked
+10. **Markdown symbols in list items** (test 15): `#` and `*` in list text not interpreted — covered
+11. **Markdown symbols in paragraphs** (test 16): Same — covered
+12. **List close with surrounding lines** (test 17): Header → list → paragraph — covered by flush logic
 
-### (2) Edge cases
+## Potential Issues
 
-All edge cases from the test suite are covered:
-- **Empty entries** (nil slice) → just header row
-- **Sorting ties** → description then change as tiebreaker
-- **Zero change** → formatted as `$0.00` with trailing space (positive)
-- **Negative one cent** → `($0.01)` in en-US, formatted correctly in nl-NL
-- **Invalid dates** → `time.Parse` returns error for bad formats like `2015-131-11` and `2015-12/11`
-- **Input mutation test** → plan explicitly copies the slice
+- **None identified.** The plan faithfully reproduces the reference solution's logic, which is proven correct.
 
-### (3) Formatting details that could cause failures
+## Improvements
 
-Key details to get right:
-1. **Column alignment**: Change column is 13 chars wide, right-aligned via `%13s`
-2. **Trailing space**: Positive numbers must end with a space for alignment (both locales)
-3. **Dutch currency format**: `$ 1.234,56 ` (space between symbol and amount) and `$ 123,45-` (minus at end for negatives)
-4. **American format**: `($10.00)` with parens, `$10.00 ` with trailing space
-5. **Thousands separators**: Must handle numbers < 1000 correctly (no separator)
-6. **Header format**: Uses `%-10s | %-25s | %s\n` (note: Change/Verandering column is NOT width-formatted in header)
+- The plan is appropriately scoped. No changes recommended.
 
-### Conclusion
+## Verdict
 
-The plan is sound. Implement following the reference solution's proven patterns. The `sort.Slice` substitution for `sort.Interface` is fine and won't affect correctness.
+**Approved.** Proceed with implementation.

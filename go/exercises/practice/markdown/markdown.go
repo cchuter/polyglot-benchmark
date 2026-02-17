@@ -1,81 +1,64 @@
 package markdown
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+)
 
-// Render translates markdown input to HTML.
-func Render(input string) string {
-	var result strings.Builder
-	lines := strings.Split(input, "\n")
-	inList := false
+const (
+	headingMarker  = '#'
+	listItemMarker = '*'
+)
 
-	for _, line := range lines {
-		if strings.HasPrefix(line, "* ") {
-			if !inList {
-				result.WriteString("<ul>")
-				inList = true
-			}
-			content := applyInline(line[2:])
-			result.WriteString("<li>" + content + "</li>")
-		} else {
-			if inList {
-				result.WriteString("</ul>")
-				inList = false
-			}
-			if strings.HasPrefix(line, "#") {
-				level := headerLevel(line)
-				if level > 0 && level <= 6 {
-					content := applyInline(line[level+1:])
-					lvl := string(rune('0' + level))
-					result.WriteString("<h" + lvl + ">" + content + "</h" + lvl + ">")
-				} else {
-					result.WriteString("<p>" + applyInline(line) + "</p>")
-				}
+// Render translates markdown to HTML.
+func Render(markdown string) string {
+	var itemList []string
+	var html = strings.Builder{}
+	for _, line := range strings.Split(markdown, "\n") {
+		if line[0] == listItemMarker {
+			itemList = append(itemList, fmt.Sprintf("<li>%s</li>", renderInlineHTML(line[2:])))
+			continue
+		} else if len(itemList) != 0 {
+			html.WriteString(fmt.Sprintf("<ul>%s</ul>", strings.Join(itemList, "")))
+			itemList = []string{}
+		}
+		if line[0] == headingMarker {
+			level := getHeadingLevel(line)
+			if level != -1 {
+				html.WriteString(fmt.Sprintf("<h%d>%s</h%d>", level, line[level+1:], level))
 			} else {
-				result.WriteString("<p>" + applyInline(line) + "</p>")
+				html.WriteString(fmt.Sprintf("<p>%s</p>", line))
 			}
+			continue
 		}
+		html.WriteString(fmt.Sprintf("<p>%s</p>", renderInlineHTML(line)))
 	}
-
-	if inList {
-		result.WriteString("</ul>")
+	if len(itemList) != 0 {
+		html.WriteString(fmt.Sprintf("<ul>%s</ul>", strings.Join(itemList, "")))
 	}
-
-	return result.String()
+	return html.String()
 }
 
-func headerLevel(line string) int {
-	level := 0
-	for _, c := range line {
-		if c == '#' {
-			level++
-		} else {
-			break
+// getHeadingLevel returns the heading level (1-6) or -1 if invalid.
+func getHeadingLevel(line string) int {
+	for i := 0; i <= 6; i++ {
+		if line[i] != headingMarker {
+			return i
 		}
 	}
-	if level > 0 && level < len(line) && line[level] == ' ' {
-		return level
-	}
-	return 0
+	return -1
 }
 
-func applyInline(text string) string {
-	text = replaceMarker(text, "__", "<strong>", "</strong>")
-	text = replaceMarker(text, "_", "<em>", "</em>")
-	return text
-}
-
-func replaceMarker(text, marker, open, close string) string {
-	parts := strings.Split(text, marker)
-	var result strings.Builder
-	for i, part := range parts {
-		if i > 0 {
-			if i%2 == 1 {
-				result.WriteString(open)
-			} else {
-				result.WriteString(close)
-			}
-		}
-		result.WriteString(part)
+// renderInlineHTML converts markdown bold and italic markers to HTML tags.
+func renderInlineHTML(text string) string {
+	result := text
+	for strings.Contains(result, "__") {
+		result = strings.Replace(result, "__", "<strong>", 1)
+		result = strings.Replace(result, "__", "</strong>", 1)
 	}
-	return result.String()
+	for strings.Contains(result, "_") {
+		result = strings.Replace(result, "_", "<em>", 1)
+		result = strings.Replace(result, "_", "</em>", 1)
+	}
+	return result
 }

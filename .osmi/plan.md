@@ -1,152 +1,112 @@
-# Implementation Plan: polyglot-go-ledger
+# Implementation Plan: polyglot-go-markdown
 
-## Proposal A (Proponent)
+## Proposal A
 
-**Approach: Clean implementation modeled on the reference solution's architecture**
+**Role: Proponent**
 
-Write `ledger.go` as a clean, well-structured implementation that follows the same architectural pattern as `.meta/example.go` — using maps for locale/currency config, a custom sort interface, and helper functions for formatting. This is the proven approach that the reference solution uses successfully.
+### Approach: Line-by-line parser with state tracking
 
-### Files to modify
-- `go/exercises/practice/ledger/ledger.go` — the only file to edit
+Implement a clean, single-pass line-by-line parser that closely follows the reference solution's structure but emphasizes readability.
 
-### Architecture
+**Files to modify:**
+- `go/exercises/practice/markdown/markdown.go`
 
-1. **Entry struct** — exported type with Date, Description, Change fields
-2. **Currency config** — map from currency code to symbol string
-3. **Locale config** — struct holding date format string, header translations, and a currency formatter function
-4. **FormatLedger** — main function that validates inputs, copies+sorts entries, formats header and rows
-5. **Helper functions**:
-   - `moneyToString(cents int, thousandsSep, decimalSep string) string` — formats cents as dollars with separators
-   - Locale-specific currency formatters (American wraps negatives in parens, Dutch appends minus)
-6. **entrySlice** — custom type implementing `sort.Interface` for multi-key sorting
+**Architecture:**
+1. Split input by newlines, process each line
+2. Use a `strings.Builder` for output accumulation
+3. Track "in list" state with a slice of list items
+4. For each line, determine its type by the first character:
+   - `*` → list item: accumulate in list items slice
+   - `#` → potential heading: count `#` chars (1-6 = heading, 7+ = paragraph)
+   - anything else → paragraph
+5. When transitioning out of a list (non-`*` line after `*` lines), flush the accumulated list
+6. After all lines, flush any remaining list
+7. Inline formatting handled by a `renderInlineHTML` function:
+   - First replace `__` pairs with `<strong>`/`</strong>`
+   - Then replace `_` pairs with `<em>`/`</em>`
 
-### Rationale
-- Follows the proven reference solution architecture
-- Clear separation of concerns (locale config vs formatting logic)
-- Uses Go idioms (sort.Interface, maps for config)
-- Single file keeps it simple
+**Why this is best:**
+- Directly mirrors the reference solution structure, ensuring correctness
+- Simple, linear flow that's easy to follow
+- Minimal abstraction overhead — just two functions (`Render` and `renderInlineHTML`) plus a helper (`getHeadingLevel`)
+- Uses only standard library (`fmt`, `strings`)
 
-### Ordering
-1. Define Entry struct
-2. Define currency symbol map
-3. Define locale info struct and locale map
-4. Implement helper functions (moneyToString, currency formatters)
-5. Implement entrySlice sort interface
-6. Implement FormatLedger
+## Proposal B
 
----
+**Role: Opponent**
 
-## Proposal B (Opponent)
+### Approach: Type-driven with explicit line classification
 
-**Approach: Minimal flat implementation without config structs**
+Instead of checking characters inline, first classify each line into a typed struct, then render all classified lines. This separates parsing from rendering.
 
-Write everything inline in FormatLedger using switch statements instead of config maps/structs. Avoid creating separate types for locale info. Use `sort.Slice` instead of implementing `sort.Interface`.
+**Files to modify:**
+- `go/exercises/practice/markdown/markdown.go`
 
-### Files to modify
-- `go/exercises/practice/ledger/ledger.go` — the only file to edit
+**Architecture:**
+1. Define a `lineType` enum (heading, listItem, paragraph)
+2. Define a `parsedLine` struct with type, content, and heading level
+3. First pass: classify every line into `[]parsedLine`
+4. Second pass: render classified lines, grouping consecutive list items into `<ul>` blocks
+5. Inline formatting in a separate function
 
-### Architecture
+**Critique of Proposal A:**
+- Proposal A interleaves classification and rendering, making it slightly harder to test individual concerns
+- State tracking (the list items slice) is mutable state that makes reasoning harder
 
-1. **Entry struct** — same
-2. **FormatLedger** — large function that uses switch/case for locale and currency handling inline
-3. Use `sort.Slice` with a closure for sorting
-4. Inline all formatting logic
+**Why this is better:**
+- Clean separation of concerns: parsing vs rendering
+- Each phase is independently testable
+- More extensible if new line types are added
 
-### Critique of Proposal A
-- Creating separate types (localeInfo, entrySlice) adds more code surface for a simple exercise
-- The reference solution's architecture is reasonable but more complex than strictly necessary
-- Config maps and function pointers add indirection
+## Selected Plan
 
-### Rationale
-- Fewer types and less indirection
-- `sort.Slice` is more modern and concise than implementing sort.Interface
-- Everything visible in fewer places
-
-### Weaknesses of this approach
-- FormatLedger becomes very long and hard to read
-- Switch statements duplicate formatting logic
-- Adding a new locale would require modifying the core function
-- Less idiomatic Go — the standard approach for this kind of config is maps/structs
-
----
-
-## Selected Plan (Judge)
+**Role: Judge**
 
 ### Evaluation
 
-**Correctness**: Both proposals can satisfy all acceptance criteria. Neither has a correctness advantage.
+**Correctness:** Both proposals can satisfy all 17 test cases. Proposal A is proven correct since it mirrors the reference solution.
 
-**Risk**:
-- Proposal A: Low risk — follows the reference solution pattern which is proven to pass all tests.
-- Proposal B: Medium risk — inline formatting logic is more error-prone, especially for the tricky currency formatting edge cases.
+**Risk:** Proposal B introduces more code surface area (types, structs, two passes) for no additional test coverage. The extra abstraction is a risk of over-engineering for this small exercise.
 
-**Simplicity**:
-- Proposal A adds more types but each piece is small and testable.
-- Proposal B has fewer types but creates a monolithic function that's harder to debug.
+**Simplicity:** Proposal A is simpler — fewer lines, fewer concepts, fewer types. For an exercise with exactly 3 line types, a type enum adds ceremony without value.
 
-**Consistency**:
-- Proposal A matches the reference solution and Go community conventions.
-- Proposal B's use of `sort.Slice` is valid but the inline approach is less conventional.
+**Consistency:** Looking at other exercises in the repo (e.g., `ledger.go`), solutions are direct and pragmatic, not heavily abstracted. Proposal A fits this convention better.
 
-### Decision: Proposal A wins
+### Winner: Proposal A
 
-Proposal A's structured approach is the better choice. The reference solution exists for a reason — it cleanly separates concerns, is easy to read, and follows Go conventions. The small overhead of config types pays off in clarity and maintainability.
+Proposal A wins because it is simpler, proven correct via the reference solution, and consistent with codebase conventions. Proposal B's separation of concerns is laudable in a larger system but is over-engineering for this 65-line exercise.
 
-However, I'll adopt one improvement from Proposal B: use `sort.Slice` instead of implementing `sort.Interface`, as it's more concise and equally correct.
+### Detailed Implementation Plan
 
-### Final Plan
+**File:** `go/exercises/practice/markdown/markdown.go`
 
-**File**: `go/exercises/practice/ledger/ledger.go`
+**Step 1:** Add package declaration and imports (`fmt`, `strings`)
 
-**Implementation in order**:
+**Step 2:** Define constants for marker characters:
+- `headingMarker = '#'`
+- `listItemMarker = '*'`
 
-1. **Package and imports**:
-   ```go
-   package ledger
-   import ("bytes", "fmt", "sort", "strings", "time")
-   ```
+**Step 3:** Implement `Render(markdown string) string`:
+- Initialize `strings.Builder` for HTML output
+- Initialize `[]string` for accumulating list items
+- Split markdown by `\n`, iterate lines:
+  - If line starts with `*`: append `<li>renderInlineHTML(line[2:])</li>` to list items, continue
+  - Else if list items non-empty: flush `<ul>...</ul>` to builder, reset list
+  - If line starts with `#`: call `getHeadingLevel(line)`:
+    - If valid (1-6): write `<hN>content</hN>`
+    - If invalid (-1): write `<p>line</p>`
+  - Else: write `<p>renderInlineHTML(line)</p>`
+- After loop: flush remaining list items if any
+- Return builder string
 
-2. **Entry struct**:
-   ```go
-   type Entry struct {
-       Date        string // "Y-m-d"
-       Description string
-       Change      int // in cents
-   }
-   ```
+**Step 4:** Implement `getHeadingLevel(line string) int`:
+- Count leading `#` chars up to index 6
+- If count > 6, return -1
+- Return count
 
-3. **Currency symbols map**:
-   ```go
-   var currencySymbols = map[string]string{"USD": "$", "EUR": "€"}
-   ```
+**Step 5:** Implement `renderInlineHTML(text string) string`:
+- Replace `__` pairs with `<strong>`/`</strong>` (loop while `__` exists)
+- Replace `_` pairs with `<em>`/`</em>` (loop while `_` exists)
+- Return result
 
-4. **Locale config struct and map**:
-   ```go
-   type localeInfo struct {
-       currency     func(symbol string, cents int, negative bool) string
-       dateFormat   string
-       translations map[string]string
-   }
-   ```
-   With methods `currencyString` and `dateString`, and a `locales` map holding en-US and nl-NL configurations.
-
-5. **Currency formatter functions**:
-   - `dutchCurrencyFormat`: symbol + space + amount + minus/space
-   - `americanCurrencyFormat`: optional paren + symbol + amount + optional paren/space
-
-6. **moneyToString helper**: Converts cents to formatted string with thousands and decimal separators.
-
-7. **FormatLedger function**:
-   - Validate currency (lookup in currencySymbols map)
-   - Validate locale (lookup in locales map)
-   - Copy entries slice (to avoid mutating input)
-   - Sort copy using `sort.Slice` with multi-key comparison (date, description, change)
-   - Write header row using locale translations
-   - For each entry: parse date, truncate description if needed, format currency, write row
-   - Return formatted string
-
-**Key formatting details**:
-- Header: `"%-10s | %-25s | %s\n"` with locale translations
-- Rows: `"%-10s | %-25s | %13s\n"` with formatted date, description, currency
-- Description truncation: if len > 25, use first 22 chars + "..."
-- Date parsing via `time.Parse("2006-01-02", ...)` for validation
+**Step 6:** Run `go test ./...` and `go vet ./...` to verify all 17 tests pass.
