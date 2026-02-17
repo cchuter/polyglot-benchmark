@@ -1,37 +1,41 @@
 package piglatin
 
-import (
-	"regexp"
-	"strings"
-)
-
-var vowel = regexp.MustCompile(`^([aeiou]|y[^aeiou]|xr)[a-z]*`)
-var cons = regexp.MustCompile(`^([^aeiou]?qu|[^aeiou]+)([a-z]*)`)
-var containsy = regexp.MustCompile(`^([^aeiou]+)y([a-z]*)`)
+import "strings"
 
 // Sentence translates a sentence from English to Pig Latin.
-func Sentence(s string) string {
-	words := strings.Fields(s)
+func Sentence(sentence string) string {
+	words := strings.Fields(sentence)
 	for i, w := range words {
-		words[i] = Word(strings.ToLower(w))
+		words[i] = translateWord(w)
 	}
 	return strings.Join(words, " ")
 }
 
-// Word translates a single word from English to Pig Latin.
-func Word(s string) string {
-	// Rule 4: consonant cluster followed by y
-	if containsy.MatchString(s) {
-		pos := containsy.FindStringSubmatchIndex(s)
-		return s[pos[3]:] + s[:pos[3]] + "ay"
+func translateWord(word string) string {
+	// Rule 1: starts with vowel, "xr", or "yt"
+	if isVowel(word[0]) || strings.HasPrefix(word, "xr") || strings.HasPrefix(word, "yt") {
+		return word + "ay"
 	}
-	// Rule 1: starts with vowel, xr, or yt
-	if vowel.MatchString(s) {
-		return s + "ay"
+
+	// Scan consonant cluster to find the split point
+	for i := 0; i < len(word); i++ {
+		// Rule 3: consonant(s) + "qu"
+		if word[i] == 'q' && i+1 < len(word) && word[i+1] == 'u' {
+			return word[i+2:] + word[:i+2] + "ay"
+		}
+		// Rule 4: consonant(s) + "y" (y not at position 0)
+		if word[i] == 'y' && i > 0 {
+			return word[i:] + word[:i] + "ay"
+		}
+		// Rule 2: found a vowel, split here
+		if isVowel(word[i]) {
+			return word[i:] + word[:i] + "ay"
+		}
 	}
-	// Rules 2 & 3: consonant cluster (with optional qu)
-	if x := cons.FindStringSubmatchIndex(s); x != nil {
-		return s[x[3]:] + s[:x[3]] + "ay"
-	}
-	return s
+	// Fallback: all consonants
+	return word + "ay"
+}
+
+func isVowel(b byte) bool {
+	return b == 'a' || b == 'e' || b == 'i' || b == 'o' || b == 'u'
 }
