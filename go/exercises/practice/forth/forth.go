@@ -1,4 +1,3 @@
-// Package forth implements a tiny subset of the Forth language.
 package forth
 
 import (
@@ -17,8 +16,8 @@ const (
 	opSub
 	opMul
 	opDiv
-	opDup
 	opDrop
+	opDup
 	opSwap
 	opOver
 	opConst
@@ -30,6 +29,13 @@ type operatorTyp struct {
 	fn operatorFn
 	id operatorID
 }
+
+var (
+	errNotEnoughOperands = errors.New("not enough operands")
+	errDivideByZero      = errors.New("attempt to divide by zero")
+	errEmptyUserDef      = errors.New("empty user definition")
+	errInvalidUserDef    = errors.New("invalid user def word")
+)
 
 func Forth(input []string) ([]int, error) {
 	if len(input) == 0 {
@@ -65,9 +71,11 @@ func parse(phrase string, userDefs map[string][]operatorTyp) ([]operatorTyp, err
 		w := strings.ToUpper(words[t])
 
 		if udef, ok := userDefs[w]; ok {
+			// User-defined word (checked before builtins for override support).
 			oplist = append(oplist, udef...)
 		} else if op, ok := builtinOps[w]; ok {
 			if op.id == opUserDef {
+				// Parse user word definition.
 				t++
 				if t >= len(words)-2 {
 					return nil, errEmptyUserDef
@@ -97,7 +105,10 @@ func parse(phrase string, userDefs map[string][]operatorTyp) ([]operatorTyp, err
 				oplist = append(oplist, op)
 			}
 		} else {
-			x, err := strconv.Atoi(w)
+			// Number literal — fresh variable for closure capture.
+			var x int
+			var err error
+			x, err = strconv.Atoi(w)
 			if err != nil {
 				return nil, err
 			}
@@ -128,12 +139,12 @@ var builtinOps = map[string]operatorTyp{
 }
 
 func pop(stack *[]int) (int, error) {
-	slen := len(*stack)
-	if slen < 1 {
+	n := len(*stack)
+	if n == 0 {
 		return 0, errNotEnoughOperands
 	}
-	v := (*stack)[slen-1]
-	*stack = (*stack)[:slen-1]
+	v := (*stack)[n-1]
+	*stack = (*stack)[:n-1]
 	return v, nil
 }
 
@@ -218,8 +229,3 @@ func over(stack *[]int) error {
 	push(stack, v2)
 	return nil
 }
-
-var errNotEnoughOperands = errors.New("not enough operands")
-var errDivideByZero = errors.New("attempt to divide by zero")
-var errEmptyUserDef = errors.New("empty user definition")
-var errInvalidUserDef = errors.New("invalid user def word")
