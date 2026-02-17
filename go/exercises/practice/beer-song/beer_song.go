@@ -1,39 +1,48 @@
 package beer
 
 import (
+	"bytes"
 	"fmt"
-	"strings"
 )
 
-func Verse(n int) (string, error) {
-	if n < 0 || n > 99 {
-		return "", fmt.Errorf("invalid verse number: %d", n)
+// Song returns the full lyrics for 99 bottles of beer.
+func Song() string {
+	s, _ := Verses(99, 0)
+	return s
+}
+
+// Verses returns the lyrics from verse start down to verse stop.
+func Verses(start, stop int) (string, error) {
+	switch {
+	case start < 0 || start > 99:
+		return "", fmt.Errorf("start value %d is not a valid verse", start)
+	case stop < 0 || stop > 99:
+		return "", fmt.Errorf("stop value %d is not a valid verse", stop)
+	case start < stop:
+		return "", fmt.Errorf("start %d is less than stop %d", start, stop)
 	}
-	switch n {
-	case 0:
+
+	var buf bytes.Buffer
+	for i := start; i >= stop; i-- {
+		v, _ := Verse(i)
+		buf.WriteString(v)
+		buf.WriteString("\n")
+	}
+	return buf.String(), nil
+}
+
+// Verse returns a single verse of the song for bottle number n.
+func Verse(n int) (string, error) {
+	switch {
+	case n < 0 || n > 99:
+		return "", fmt.Errorf("%d is not a valid verse", n)
+	case n == 0:
 		return "No more bottles of beer on the wall, no more bottles of beer.\nGo to the store and buy some more, 99 bottles of beer on the wall.\n", nil
-	case 1:
+	case n == 1:
 		return "1 bottle of beer on the wall, 1 bottle of beer.\nTake it down and pass it around, no more bottles of beer on the wall.\n", nil
-	case 2:
+	case n == 2:
 		return "2 bottles of beer on the wall, 2 bottles of beer.\nTake one down and pass it around, 1 bottle of beer on the wall.\n", nil
 	default:
 		return fmt.Sprintf("%d bottles of beer on the wall, %d bottles of beer.\nTake one down and pass it around, %d bottles of beer on the wall.\n", n, n, n-1), nil
 	}
-}
-
-func Verses(upper, lower int) (string, error) {
-	if upper > 99 || lower < 0 || upper < lower {
-		return "", fmt.Errorf("invalid range: %d to %d", upper, lower)
-	}
-	var parts []string
-	for i := upper; i >= lower; i-- {
-		v, _ := Verse(i)
-		parts = append(parts, v)
-	}
-	return strings.Join(parts, "\n") + "\n", nil
-}
-
-func Song() string {
-	s, _ := Verses(99, 0)
-	return s
 }

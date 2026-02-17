@@ -1,88 +1,169 @@
-# Implementation Plan: Alphametics Solver
+# Implementation Plan: Beer Song (Issue #319)
 
-## Proposal A: Column-based Backtracking with Constraint Propagation
+## Proposal A
 
 **Role: Proponent**
 
-### Approach
+### Approach: Switch-based with `fmt.Sprintf`
 
-Process the puzzle column-by-column from right to left (like manual addition), assigning digits to letters as they are encountered. At each column, check if the constraint (sum of digits in that column + carry = result digit + 10 * new_carry) can be satisfied. Prune impossible assignments early.
+Edit `beer_song.go` to implement three functions using a switch statement to handle the four verse cases (0, 1, 2, default) with `fmt.Sprintf` for the generic case and string literals for special cases. Use `bytes.Buffer` for concatenation in `Verses()`.
 
 ### Files to Modify
+- `go/exercises/practice/beer-song/beer_song.go` — the only file to change
 
-- `go/exercises/practice/alphametics/alphametics.go` — sole implementation file
+### Implementation
 
-### Architecture
+```go
+package beer
 
-1. **Parse** the puzzle string into addend words and a result word
-2. **Build column structure**: organize letters by their column position (units, tens, hundreds, etc.)
-3. **Order letters** by column (right to left) for assignment priority
-4. **Backtrack** through columns, assigning digits to unassigned letters, checking column constraints as each column becomes fully assigned
-5. **Prune** via:
-   - Leading-zero constraint: letters that start a word cannot be 0
-   - Uniqueness: each digit used at most once
-   - Column arithmetic: when all letters in a column are assigned, verify the column sum is consistent
+import (
+    "bytes"
+    "fmt"
+)
+
+func Song() string {
+    s, _ := Verses(99, 0)
+    return s
+}
+
+func Verses(start, stop int) (string, error) {
+    if start < 0 || start > 99 {
+        return "", fmt.Errorf("invalid start: %d", start)
+    }
+    if stop < 0 || stop > 99 {
+        return "", fmt.Errorf("invalid stop: %d", stop)
+    }
+    if start < stop {
+        return "", fmt.Errorf("start %d < stop %d", start, stop)
+    }
+    var buf bytes.Buffer
+    for i := start; i >= stop; i-- {
+        v, _ := Verse(i)
+        buf.WriteString(v)
+        buf.WriteString("\n")
+    }
+    return buf.String(), nil
+}
+
+func Verse(n int) (string, error) {
+    switch {
+    case n < 0 || n > 99:
+        return "", fmt.Errorf("invalid verse: %d", n)
+    case n == 0:
+        return "No more bottles of beer on the wall, no more bottles of beer.\nGo to the store and buy some more, 99 bottles of beer on the wall.\n", nil
+    case n == 1:
+        return "1 bottle of beer on the wall, 1 bottle of beer.\nTake it down and pass it around, no more bottles of beer on the wall.\n", nil
+    case n == 2:
+        return "2 bottles of beer on the wall, 2 bottles of beer.\nTake one down and pass it around, 1 bottle of beer on the wall.\n", nil
+    default:
+        return fmt.Sprintf("%d bottles of beer on the wall, %d bottles of beer.\nTake one down and pass it around, %d bottles of beer on the wall.\n", n, n, n-1), nil
+    }
+}
+```
 
 ### Rationale
 
-- Column-based processing mirrors how humans solve these puzzles
-- Early pruning at each column significantly reduces the search space vs. full permutation enumeration
-- For the 199-addend puzzle with 10 letters, this approach can handle it because it prunes deeply at the rightmost columns before exploring further
-- Natural handling of carry propagation
-
-### Ordering of Changes
-
-1. Write parser (split on `+` and `==`, extract words, identify unique letters and leading letters)
-2. Build column data structure
-3. Implement recursive backtracking solver with column constraints
-4. Wire up `Solve` function
-5. Test
+- Directly mirrors the reference implementation in `.meta/example.go`
+- Minimal code, easy to verify against test expectations
+- Uses `bytes.Buffer` for efficient string concatenation
+- Clear switch cases for each grammar variation
+- Error handling matches what tests expect
 
 ---
 
-## Proposal B: Permutation-based Brute Force with Algebraic Preprocessing
+## Proposal B
 
 **Role: Opponent**
 
-### Approach
+### Approach: Template-based with helper functions
 
-Convert the puzzle into a single linear equation over the letter variables (each letter has a coefficient based on its positional value across all words), then enumerate digit permutations and check whether the equation is satisfied. Optimize by computing coefficients once and evaluating a simple sum.
+Use helper functions to compute the bottle count string and action string, then compose verses using a single template. Avoids hardcoded string literals for verses 1 and 2.
 
 ### Files to Modify
+- `go/exercises/practice/beer-song/beer_song.go` — the only file to change
 
-- `go/exercises/practice/alphametics/alphametics.go` — sole implementation file
+### Implementation
 
-### Architecture
+```go
+package beer
 
-1. **Parse** the puzzle into addend words and result word
-2. **Compute coefficients**: for each letter, compute its total weight. For addend words, each letter at position `i` from the right contributes `+10^i`. For the result word, each letter contributes `-10^i`. A valid solution makes the weighted sum equal to zero.
-3. **Enumerate permutations** of digits for the unique letters. Use recursive generation of permutations, checking uniqueness and leading-zero constraints.
-4. **Evaluate**: for each permutation, compute the weighted sum. If zero, return the mapping.
+import (
+    "fmt"
+    "strings"
+)
+
+func bottleStr(n int) string {
+    switch n {
+    case 0:
+        return "no more bottles"
+    case 1:
+        return "1 bottle"
+    default:
+        return fmt.Sprintf("%d bottles", n)
+    }
+}
+
+func capitalBottleStr(n int) string {
+    if n == 0 {
+        return "No more bottles"
+    }
+    return bottleStr(n)
+}
+
+func actionStr(n int) string {
+    switch n {
+    case 0:
+        return "Go to the store and buy some more"
+    case 1:
+        return "Take it down and pass it around"
+    default:
+        return "Take one down and pass it around"
+    }
+}
+
+func nextN(n int) int {
+    if n == 0 {
+        return 99
+    }
+    return n - 1
+}
+
+func Verse(n int) (string, error) {
+    if n < 0 || n > 99 {
+        return "", fmt.Errorf("invalid verse: %d", n)
+    }
+    return fmt.Sprintf("%s of beer on the wall, %s of beer.\n%s, %s of beer on the wall.\n",
+        capitalBottleStr(n), bottleStr(n), actionStr(n), bottleStr(nextN(n))), nil
+}
+
+func Verses(start, stop int) (string, error) {
+    // validation...
+    var parts []string
+    for i := start; i >= stop; i-- {
+        v, _ := Verse(i)
+        parts = append(parts, v)
+    }
+    return strings.Join(parts, "\n"), nil
+}
+
+func Song() string {
+    s, _ := Verses(99, 0)
+    return s
+}
+```
 
 ### Critique of Proposal A
 
-- Column-based backtracking is more complex to implement correctly, especially handling carries across columns
-- The column ordering creates subtle bugs around partially-assigned columns
-- More code, more edge cases, harder to debug
+- Uses string literals that are hard to verify without running the code
+- Has some duplication (the "bottles of beer on the wall" phrase appears in every case)
+- If the song format ever changed, you'd need to update multiple literals
 
-### Rationale for Proposal B
+### Rationale for B
 
-- Simpler conceptually: reduce to a single equation, then search
-- The coefficient computation is O(total_chars), done once
-- Evaluation per permutation is O(num_letters), very fast
-- For 10 letters: 10! = 3,628,800 permutations. Each permutation evaluation is ~10 multiplications and additions. On modern hardware this completes in well under a second.
-- For fewer letters: search space is even smaller (e.g., 8 letters = 10*9*8*7*6*5*4*3 = 1,814,400)
-- Much simpler to implement correctly
-- Easy to add leading-zero pruning during permutation generation
-
-### Ordering of Changes
-
-1. Write parser
-2. Compute letter coefficients
-3. Implement permutation generator with leading-zero constraint
-4. Evaluate equation for each permutation
-5. Wire up `Solve` function
-6. Test
+- DRY — the verse template is defined once
+- Each grammar rule is isolated in its own function
+- Easier to reason about correctness of each component
+- More extensible
 
 ---
 
@@ -92,69 +173,32 @@ Convert the puzzle into a single linear equation over the letter variables (each
 
 ### Evaluation
 
-| Criterion | Proposal A (Column Backtracking) | Proposal B (Algebraic Permutation) |
-|---|---|---|
-| **Correctness** | Correct but complex carry logic is error-prone | Correct; single-equation check is straightforward |
-| **Risk** | Higher: column indexing, carry propagation, partial-column checks | Lower: simple arithmetic check per permutation |
-| **Simplicity** | More complex: ~100+ lines, multiple data structures | Simpler: ~60-80 lines, one coefficient map |
-| **Consistency** | Both fit codebase conventions equally | Both fit codebase conventions equally |
-| **Performance** | Better asymptotic pruning | 10! worst case but evaluates in <1s on modern hardware |
+| Criterion     | Proposal A                                    | Proposal B                                         |
+|---------------|-----------------------------------------------|---------------------------------------------------|
+| Correctness   | Directly matches reference and test expectations | Higher risk — composing from parts could introduce subtle format mismatches |
+| Risk          | Low — literals are copy-paste verifiable       | Medium — template composition could produce wrong spacing/capitalization |
+| Simplicity    | Very simple, ~30 lines                         | More complex, 5 functions, ~50 lines               |
+| Consistency   | Matches `.meta/example.go` exactly             | Different pattern from reference implementation    |
 
-### Decision: Proposal B wins
+### Decision: Proposal A
 
-**Rationale**: The algebraic permutation approach is significantly simpler to implement correctly. The performance concern about 10! permutations is a non-issue — 3.6M iterations with a ~10-operation inner loop runs in well under a second. The simplicity advantage far outweighs the marginal performance benefit of column-based pruning. For a correct, maintainable solution, Proposal B is clearly superior.
-
-However, I'll incorporate one optimization from Proposal A's spirit: during permutation generation, prune branches early when a leading letter is about to be assigned zero. This is trivially done in the recursive permutation generator.
+Proposal A wins on all criteria. This is a straightforward exercise where the primary risk is getting the exact string format wrong. Hardcoded literals for special cases make it trivially verifiable. The reference implementation uses this same pattern, confirming it's the idiomatic approach for this exercise. Proposal B's template approach is over-engineered for a fixed-format song.
 
 ### Final Implementation Plan
 
-#### File: `go/exercises/practice/alphametics/alphametics.go`
-
-**Package**: `alphametics`
-
-**Imports**: `fmt`, `strings`
-
-**Step 1: Parse the puzzle**
-
-```go
-func Solve(puzzle string) (map[string]int, error)
-```
-
-- Split `puzzle` on `"=="` to get left-hand side and right-hand side
-- Split left-hand side on `"+"` to get addend words
-- Trim whitespace from all words
-- Collect unique letters (as a slice for stable ordering)
-- Identify leading letters (first char of each word with len > 1) — these cannot be zero
-
-**Step 2: Compute coefficients**
-
-- For each addend word, iterate right-to-left, adding `10^position` to that letter's coefficient
-- For the result word, iterate right-to-left, subtracting `10^position` from that letter's coefficient
-- Store as `map[byte]int` (letter -> coefficient)
-- Also create a `letters []byte` slice for iteration order
-
-**Step 3: Recursive permutation search**
-
-```go
-func solve(letters []byte, coeffs map[byte]int, leading map[byte]bool, used [10]bool, assignment map[byte]int, idx int) bool
-```
-
-- Base case: `idx == len(letters)` → evaluate sum using coefficients; return true if sum == 0
-- For each digit 0-9:
-  - Skip if digit already used
-  - Skip if digit == 0 and current letter is a leading letter
-  - Assign digit, mark used, recurse
-  - Unassign on backtrack
-
-**Step 4: Build and return result**
-
-- Convert `map[byte]int` to `map[string]int` for the return value
-- Return error if no solution found
-
-#### Performance Note
-
-For the 199-addend, 10-letter puzzle: the coefficient precomputation reduces 199 words to 10 coefficients. Each of the 10! = 3,628,800 permutations requires only 10 multiply-add operations to evaluate. This will run in well under 1 second.
-
-#### Additional Optimization
-
-Order the letters so that letters with the largest absolute coefficients are assigned first. This doesn't change correctness but can speed up pruning when combined with a partial-sum check: at each recursive step, if the remaining unassigned letters can't possibly make the partial sum reach zero, prune. However, this optimization is likely unnecessary and adds complexity — implement only if the basic approach is too slow (it won't be).
+1. Edit `go/exercises/practice/beer-song/beer_song.go`
+2. Add imports: `bytes`, `fmt`
+3. Implement `Verse(n int) (string, error)` with switch on n:
+   - `n < 0 || n > 99`: return error
+   - `n == 0`: return verse 0 literal
+   - `n == 1`: return verse 1 literal
+   - `n == 2`: return verse 2 literal
+   - default: return `fmt.Sprintf(...)` with n, n, n-1
+4. Implement `Verses(start, stop int) (string, error)`:
+   - Validate start and stop are in [0, 99] and start >= stop
+   - Loop from start down to stop, appending each verse + "\n" to a `bytes.Buffer`
+   - Return buffer contents
+5. Implement `Song() string`:
+   - Call `Verses(99, 0)` and return result
+6. Run `go test ./...` and `go vet ./...` to verify
+7. Commit

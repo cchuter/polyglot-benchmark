@@ -1,39 +1,34 @@
-# Goal: Implement Alphametics Solver (Issue #317)
+# Goal: Implement Beer Song Exercise (Issue #319)
 
 ## Problem Statement
 
-Implement a function `Solve` in the `alphametics` Go package that solves alphametics puzzles. Alphametics puzzles replace letters in words with digits such that the resulting arithmetic equation is valid. Each letter maps to a unique digit (0-9), and leading digits of multi-digit numbers must not be zero.
+Implement the "99 Bottles of Beer on the Wall" song generator in Go. The solution must provide three functions that generate the lyrics with correct grammar variations for different verse numbers.
 
-## Function Signature
+## Required Functions
 
-```go
-func Solve(puzzle string) (map[string]int, error)
-```
-
-**Input**: A string like `"SEND + MORE == MONEY"` containing words separated by `+` operators and one `==` operator.
-
-**Output**: A `map[string]int` mapping each uppercase letter to its digit, or an error if no valid solution exists.
+1. **`Verse(n int) (string, error)`** — Returns a single verse for bottle number `n` (0-99). Returns error for invalid input.
+2. **`Verses(start, stop int) (string, error)`** — Returns verses from `start` down to `stop`, separated by blank lines. Returns error for invalid input or if start < stop.
+3. **`Song() string`** — Returns the entire song (verses 99 through 0).
 
 ## Acceptance Criteria
 
-1. `Solve` correctly parses puzzle strings with `+` and `==` operators
-2. `Solve` returns a valid mapping where each letter maps to a unique digit (0-9)
-3. Leading letters of multi-digit words are never mapped to zero
-4. The arithmetic equation holds: sum of all addends equals the result
-5. Returns an error when no valid solution exists (e.g., `"A == B"`)
-6. All 10 test cases in `cases_test.go` pass, including:
-   - 3-letter puzzles
-   - Puzzles with no solution
-   - Leading zero rejection
-   - Carry propagation (11 addends)
-   - 4, 6, 7, 8, 10 letter puzzles
-   - Large puzzle with 199 addends and 10 letters
-7. `go vet` reports no issues
-8. Performance: the 199-addend puzzle must complete in reasonable time (not brute-force all 10! permutations naively)
+1. `Verse(n)` returns the correct verse for any n in [0, 99]
+2. `Verse(n)` returns an error for n outside [0, 99]
+3. Grammar variations are handled correctly:
+   - n >= 3: "{n} bottles" / "Take one down" / "{n-1} bottles"
+   - n == 2: "2 bottles" / "Take one down" / "1 bottle" (singular)
+   - n == 1: "1 bottle" (singular) / "Take it down" (not "one") / "no more bottles"
+   - n == 0: "No more bottles" / "Go to the store and buy some more, 99 bottles"
+4. `Verses(start, stop)` returns verses separated by "\n" (blank line between verses)
+5. `Verses()` returns error when start or stop is outside [0, 99] or start < stop
+6. `Song()` returns the same result as `Verses(99, 0)`
+7. All tests in `beer_song_test.go` pass
+8. `go vet` reports no issues
 
 ## Key Constraints
 
-- Package name: `alphametics`
-- Module: `alphametics` with `go 1.18`
-- Only modify `alphametics.go` — test files are auto-generated and read-only
-- Must handle up to 10 unique letters (digits 0-9)
+- Package name: `beer`
+- Module: `beer` (go 1.18)
+- File: `beer_song.go` (edit the existing stub)
+- Do not modify `beer_song_test.go`
+- Standard library only (no external dependencies)

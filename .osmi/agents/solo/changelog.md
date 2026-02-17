@@ -1,15 +1,13 @@
 # Solo Agent Change Log
 
-## Change 1: Implement alphametics solver
+## Change 1: Implement beer-song solution
 
-**File modified**: `go/exercises/practice/alphametics/alphametics.go`
+**File modified:** `go/exercises/practice/beer-song/beer_song.go`
 
-**What was done**:
-- Implemented `Solve(puzzle string) (map[string]int, error)` function
-- Implemented `search()` recursive backtracking helper
-- Parsing: splits puzzle on `==` and `+`, extracts words, identifies unique letters and leading letters
-- Algebraic approach: computes positional coefficients for each letter (addends positive, result negative), reducing the puzzle to a single linear equation
-- Backtracking search: tries all digit permutations with uniqueness and leading-zero constraints
-- Returns `map[string]int` mapping or error if no solution exists
+**What changed:**
+- Replaced stub (package declaration only) with full implementation
+- Added `Verse(n int) (string, error)` — returns a single verse with correct grammar
+- Added `Verses(start, stop int) (string, error)` — returns a range of verses with validation
+- Added `Song() string` — returns the complete song (verses 99-0)
 
-**Test results**: All 10 test cases pass in 0.91s. `go vet` clean.
+**Test results:** All 11 tests pass, go vet clean
