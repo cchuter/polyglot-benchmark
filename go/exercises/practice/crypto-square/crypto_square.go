@@ -17,15 +17,11 @@ func norm(r rune) rune {
 
 func Encode(pt string) string {
 	pt = strings.Map(norm, pt)
-	if len(pt) == 0 {
-		return ""
-	}
 	numCols := int(math.Ceil(math.Sqrt(float64(len(pt)))))
-	numRows := numCols - 1
-	if numRows*numCols < len(pt) {
-		numRows = numCols
+	padding := numCols*(numCols-1) - len(pt)
+	if padding < 0 {
+		padding = numCols*numCols - len(pt)
 	}
-	padding := numRows*numCols - len(pt)
 	cols := make([]string, numCols)
 	for i, r := range pt {
 		cols[i%numCols] += string(r)
