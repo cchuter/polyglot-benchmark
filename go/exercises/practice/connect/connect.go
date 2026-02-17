@@ -1,90 +1,134 @@
 package connect
 
+import "errors"
+
+const (
+	white = 1 << iota
+	black
+	connectedWhite
+	connectedBlack
+)
+
+type colorFlags struct {
+	color     int8
+	connected int8
+}
+
 type coord struct {
-	row, col int
+	x, y int
 }
 
 type board struct {
-	height int
-	width  int
-	cells  []string
+	height, width int
+	fields        [][]int8
 }
 
-func newBoard(lines []string) board {
-	h := len(lines)
-	w := 0
-	if h > 0 {
-		w = len(lines[0])
+var (
+	flagsBlack = colorFlags{color: black, connected: connectedBlack}
+	flagsWhite = colorFlags{color: white, connected: connectedWhite}
+)
+
+func newBoard(lines []string) (board, error) {
+	if len(lines) == 0 {
+		return board{}, errors.New("empty board")
 	}
-	return board{height: h, width: w, cells: lines}
-}
-
-func (b *board) at(c coord) byte {
-	return b.cells[c.row][c.col]
-}
-
-func (b *board) valid(c coord) bool {
-	return c.row >= 0 && c.row < b.height && c.col >= 0 && c.col < b.width
-}
-
-func (b *board) neighbors(c coord) []coord {
-	dirs := [6]coord{
-		{0, 1}, {0, -1}, {1, 0}, {-1, 0}, {-1, 1}, {1, -1},
+	height := len(lines)
+	width := len(lines[0])
+	fields := make([][]int8, height)
+	for y, line := range lines {
+		fields[y] = make([]int8, width)
+		for x, ch := range line {
+			switch ch {
+			case 'X':
+				fields[y][x] = black
+			case 'O':
+				fields[y][x] = white
+			}
+		}
 	}
+	return board{height: height, width: width, fields: fields}, nil
+}
+
+func (b board) at(c coord, cf colorFlags) (hasColor bool, isConnected bool) {
+	v := b.fields[c.y][c.x]
+	return v&cf.color != 0, v&cf.connected != 0
+}
+
+func (b board) markConnected(c coord, cf colorFlags) {
+	b.fields[c.y][c.x] |= cf.connected
+}
+
+func (b board) validCoord(c coord) bool {
+	return c.x >= 0 && c.x < b.width && c.y >= 0 && c.y < b.height
+}
+
+func (b board) neighbors(c coord) []coord {
+	dirs := []coord{{1, 0}, {-1, 0}, {0, 1}, {0, -1}, {-1, 1}, {1, -1}}
 	result := make([]coord, 0, 6)
 	for _, d := range dirs {
-		n := coord{c.row + d.row, c.col + d.col}
-		if b.valid(n) {
+		n := coord{c.x + d.x, c.y + d.y}
+		if b.validCoord(n) {
 			result = append(result, n)
 		}
 	}
 	return result
 }
 
-func (b *board) dfs(c coord, color byte, visited map[coord]bool) bool {
-	if !b.valid(c) || visited[c] || b.at(c) != color {
+func (b board) startCoords(cf colorFlags) []coord {
+	var coords []coord
+	if cf.color == white {
+		for x := 0; x < b.width; x++ {
+			coords = append(coords, coord{x, 0})
+		}
+	} else {
+		for y := 0; y < b.height; y++ {
+			coords = append(coords, coord{0, y})
+		}
+	}
+	return coords
+}
+
+func (b board) isTargetCoord(c coord, cf colorFlags) bool {
+	if cf.color == white {
+		return c.y == b.height-1
+	}
+	return c.x == b.width-1
+}
+
+func (b board) evaluate(c coord, cf colorFlags) bool {
+	hasColor, isConnected := b.at(c, cf)
+	if !hasColor || isConnected {
 		return false
 	}
-	visited[c] = true
-	if color == 'X' && c.col == b.width-1 {
-		return true
-	}
-	if color == 'O' && c.row == b.height-1 {
+	b.markConnected(c, cf)
+	if b.isTargetCoord(c, cf) {
 		return true
 	}
 	for _, n := range b.neighbors(c) {
-		if b.dfs(n, color, visited) {
+		if b.evaluate(n, cf) {
 			return true
 		}
 	}
 	return false
 }
 
-// ResultOf determines the winner of a Hex board game.
-// Returns "X" if X connects left to right, "O" if O connects top to bottom, or "" if no winner.
+// ResultOf determines the winner of a Connect (Hex) game.
+// Returns "X" if black wins (left to right), "O" if white wins (top to bottom),
+// or "" if there is no winner.
 func ResultOf(lines []string) (string, error) {
-	b := newBoard(lines)
-	if b.height == 0 || b.width == 0 {
-		return "", nil
+	b, err := newBoard(lines)
+	if err != nil {
+		return "", err
 	}
-
-	// Check if X wins (left to right)
-	visited := make(map[coord]bool)
-	for row := 0; row < b.height; row++ {
-		c := coord{row, 0}
-		if b.at(c) == 'X' && b.dfs(c, 'X', visited) {
+	for _, c := range b.startCoords(flagsBlack) {
+		if b.evaluate(c, flagsBlack) {
 			return "X", nil
 		}
 	}
-
-	// Check if O wins (top to bottom)
-	visited = make(map[coord]bool)
-	for col := 0; col < b.width; col++ {
-		c := coord{0, col}
-		if b.at(c) == 'O' && b.dfs(c, 'O', visited) {
+	for _, c := range b.startCoords(flagsWhite) {
+		if b.evaluate(c, flagsWhite) {
 			return "O", nil
 		}
 	}
-
 	return "", nil
 }
